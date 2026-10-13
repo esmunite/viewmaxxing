@@ -115,47 +115,48 @@
     })();
   });
 
-  /* ---------------- Bennett live character (Duolingo-style: idles, perks up sometimes) ---------------- */
+  /* ---------------- score demo card loop (landing) ---------------- */
   (function () {
-    var sprite = document.getElementById('bennett-sprite');
-    var actor = document.getElementById('bennett-actor');
-    if (!sprite || !actor) return;
-    var FACE = ['bennett-light.webp', 'bennett-joy.webp'];
-    FACE.forEach(function (s) { var im = new Image(); im.src = s; }); // preload, no flicker
-    var waving = false, hoverCooldown = false;
-    function wave() {
-      if (waving) return;
-      waving = true;
-      sprite.classList.remove('waving');
-      void sprite.offsetWidth; // restart the animation
-      sprite.classList.add('waving');
-      setTimeout(function () {
-        sprite.classList.remove('waving');
-        waving = false;
-      }, 950);
+    var card = document.getElementById('score-demo');
+    if (card) {
+      var nums = card.querySelectorAll('.score-num');
+      var bars = card.querySelectorAll('.score-demo-bar i');
+      var line = card.querySelector('.score-demo-line');
+      function playDemo() {
+        nums.forEach(function (n) { n.textContent = '0'; });
+        bars.forEach(function (b) { b.style.width = '0'; });
+        card.classList.remove('is-live');
+        void card.offsetWidth;
+        requestAnimationFrame(function () {
+          bars.forEach(function (b) { b.style.width = b.getAttribute('data-w') + '%'; });
+          nums.forEach(function (n) {
+            var target = parseInt(n.getAttribute('data-target'), 10), t0 = null;
+            function tick(t) {
+              if (!t0) t0 = t;
+              var p = Math.min((t - t0) / 1500, 1);
+              n.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+              if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+          });
+          setTimeout(function () { card.classList.add('is-live'); }, 80);
+        });
+      }
+      playDemo();
+      setInterval(playDemo, 7500);
     }
-    function facePulse() { // happy face flash, like a gif
-      sprite.src = FACE[1];
-      setTimeout(function () { sprite.src = FACE[0]; }, 500);
+    /* stat count-up */
+    var sc = document.getElementById('stat-count');
+    if (sc) {
+      var t0 = null;
+      function tick(t) {
+        if (!t0) t0 = t;
+        var p = Math.min((t - t0) / 1100, 1);
+        sc.textContent = Math.round(3 * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      setTimeout(function () { requestAnimationFrame(tick); }, 500);
     }
-    function scheduleWave() {
-      var delay = 20000 + Math.random() * 10000; // every 20–30s
-      setTimeout(function () { wave(); scheduleWave(); }, delay);
-    }
-    function scheduleFace() {
-      var delay = 9000 + Math.random() * 5000; // every 9–14s, the main "alive" signal
-      setTimeout(function () { facePulse(); scheduleFace(); }, delay);
-    }
-    setTimeout(function () { wave(); facePulse(); }, 3000); // hello on arrival
-    scheduleWave();
-    scheduleFace();
-    actor.addEventListener('click', function () { wave(); facePulse(); });
-    actor.addEventListener('mouseenter', function () { // poke him, he reacts
-      if (hoverCooldown) return;
-      hoverCooldown = true;
-      wave(); facePulse();
-      setTimeout(function () { hoverCooldown = false; }, 4000);
-    });
   })();
 
   /* ---------------- auth buttons ---------------- */
