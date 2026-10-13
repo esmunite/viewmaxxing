@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Rater — Bennett helps grade your video</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ============ VIEW: LANDING ============ -->
+<section id="view-landing" class="view">
+  <div class="landing-wrap">
+    <p class="eyebrow">Content Rater</p>
+    <h1>Bennett helps grade your video.</h1>
+    <p class="subline">Extract frames, transcribe audio, identify scenes, hooks, pacing, and CTAs</p>
+    <p class="free-line">Free. Videos are processed by free-tier AI (Google/Groq).</p>
+    <button id="btn-google" class="btn btn-primary btn-google">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+      Sign in with Google
+    </button>
+    <p class="tiny">3 free video grades per day. No credit card, ever.</p>
+  </div>
+</section>
+
+<!-- ============ VIEW: APP SHELL ============ -->
+<section id="view-app" class="view hidden">
+  <header class="app-header">
+    <div class="brand">Content Rater</div>
+    <div class="header-right">
+      <span id="quota-pill" class="quota-pill">…</span>
+      <button id="btn-history" class="btn btn-ghost">History</button>
+      <button id="btn-signout" class="btn btn-ghost">Sign out</button>
+    </div>
+  </header>
+
+  <ol class="steps">
+    <li id="step-1" class="step active"><span>1</span> Creative Brief</li>
+    <li id="step-2" class="step"><span>2</span> Add video</li>
+    <li id="step-3" class="step"><span>3</span> Report</li>
+  </ol>
+
+  <!-- STEP 1: CREATIVE BRIEF -->
+  <div id="pane-brief" class="pane">
+    <h2>Creative Brief</h2>
+    <p class="pane-sub">Only what the video itself can't tell us. Everything else, the AI figures out on its own.</p>
+
+    <div class="field">
+      <div class="field-head"><label>Primary goal</label><span class="req">Required</span></div>
+      <p class="field-sub">What should the video accomplish?</p>
+      <div class="goal-grid" id="goal-grid">
+        <button class="goal-card" data-goal="virality"><span class="goal-icon">↗</span><strong>Virality</strong><small>Reach and shares</small></button>
+        <button class="goal-card" data-goal="conversion"><span class="goal-icon">🛒</span><strong>Conversion</strong><small>Sales and leads</small></button>
+        <button class="goal-card" data-goal="growth"><span class="goal-icon">👥</span><strong>Growth</strong><small>Followers</small></button>
+        <button class="goal-card" data-goal="engagement"><span class="goal-icon">💬</span><strong>Engagement</strong><small>Comments and saves</small></button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-head"><label>Where will this live?</label><span class="req">Required</span></div>
+      <p class="field-sub">Pick all that apply — grading changes per platform.</p>
+      <div class="check-row" id="platform-checks">
+        <label class="check"><input type="checkbox" value="TikTok"> TikTok</label>
+        <label class="check"><input type="checkbox" value="Instagram Reels"> Instagram Reels</label>
+        <label class="check"><input type="checkbox" value="YouTube Shorts"> YouTube Shorts</label>
+        <label class="check"><input type="checkbox" value="Paid ads"> Paid ads</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="in-viewer">Intended viewer</label>
+      <p class="field-sub">Who is this video for?</p>
+      <input id="in-viewer" type="text" placeholder="e.g. beginner lifters, 18–24">
+    </div>
+
+    <div class="field">
+      <label for="in-niche">Industry / niche <span class="opt">(optional)</span></label>
+      <input id="in-niche" type="text" placeholder="e.g. fitness, finance, beauty">
+    </div>
+
+    <div class="field hidden" id="offer-field">
+      <label for="in-offer">Product / offer <span class="opt">(optional)</span></label>
+      <p class="field-sub">What are you selling? Include the price or offer and the action you want viewers to take.</p>
+      <input id="in-offer" type="text" placeholder="e.g. $29 workout plan — click the link in bio">
+    </div>
+
+    <p id="brief-error" class="error hidden"></p>
+    <button id="btn-to-upload" class="btn btn-primary">Continue to upload →</button>
+  </div>
+
+  <!-- STEP 2: ADD VIDEO -->
+  <div id="pane-upload" class="pane hidden">
+    <h2>Bennett helps grade your video.</h2>
+    <p class="pane-sub">Extract frames, transcribe audio, identify scenes, hooks, pacing, and CTAs</p>
+
+    <div id="brief-summary" class="brief-summary"></div>
+
+    <label class="dropzone" id="dropzone">
+      <input id="file-input" type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" hidden>
+      <span class="drop-title">Drop your video here or click to browse</span>
+      <span class="drop-sub">MP4, MOV or WebM · first 90 seconds of audio are analyzed</span>
+    </label>
+    <p id="file-name" class="file-name hidden"></p>
+
+    <div id="extract-progress" class="progress hidden">
+      <div class="progress-bar"><div id="progress-fill"></div></div>
+      <p id="progress-text">Preparing…</p>
+    </div>
+
+    <p id="upload-error" class="error hidden"></p>
+    <button id="btn-analyze" class="btn btn-primary hidden">Grade my video</button>
+    <button id="btn-back-brief" class="btn btn-ghost">← Back to brief</button>
+  </div>
+
+  <!-- STEP 3: REPORT -->
+  <div id="pane-report" class="pane hidden">
+    <div id="report-loading" class="hidden">
+      <div class="spinner"></div>
+      <p>Grading your video… this takes about 30–60 seconds.</p>
+    </div>
+    <div id="report-body"></div>
+    <div class="report-actions hidden" id="report-actions">
+      <button id="btn-download" class="btn btn-primary">Download report</button>
+      <button id="btn-new" class="btn btn-ghost">Grade another video</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="pane-history" class="pane hidden">
+    <h2>Your past grades</h2>
+    <div id="history-list"></div>
+    <button id="btn-back-main" class="btn btn-ghost">← Back</button>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
