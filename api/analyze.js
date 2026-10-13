@@ -1,4 +1,4 @@
-/* POST /api/analyze — grade one video.
+/* POST /api/analyze â€” grade one video.
    Body: { brief, frames:[base64 jpeg...], audioB64 (base64 wav), fileName }
    Steps: verify Supabase JWT -> check daily quota (3/day UTC) -> Groq Whisper
    transcript -> Gemini vision grading -> fallback chain -> save report -> return.
@@ -8,7 +8,8 @@
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-var GEMINI_MODEL = 'gemini-2.5-flash'; // free-tier flash model; update if retired
+var GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']; // vision grading, tried in order
+var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile']; // transcript-only, tried in order
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
@@ -29,20 +30,8 @@ module.exports = async function handler(req, res) {
     // 1) Transcribe (Groq Whisper, free tier)
     var transcript = await transcribe(audioB64);
 
-    // 2) Grade with Gemini (frames + transcript + brief)
-    var report;
-    try {
-      report = await gradeWithGemini(brief, frames, transcript);
-    } catch (e) {
-      // fallback chain: one retry, then Groq chat (transcript-only)
-      try {
-        await sleep(1500);
-        report = await gradeWithGemini(brief, frames, transcript);
-      } catch (e2) {
-        report = await gradeWithGroqFallback(brief, transcript);
-        report.visual_analysis_unavailable = true;
-      }
-    }
+    // 2) Grade: Gemini models first (full vision), then Groq chat models (transcript-only)
+    var report = await gradeWithFallbackChain(brief, frames, transcript);
 
     // 3) Save + increment quota
     await saveReport(user.id, brief, report);
@@ -162,13 +151,13 @@ function buildPrompt(brief, transcript) {
   ].filter(Boolean).join('\n');
 }
 
-async function gradeWithGemini(brief, frames, transcript) {
+async function gradeWithGemini(brief, frames, transcript, model) {
   var parts = [{ text: buildPrompt(brief, transcript) }];
   frames.slice(0, 12).forEach(function (f) {
     parts.push({ inline_data: { mime_type: 'image/jpeg', data: f } });
   });
   var r = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL +
+    'https://generativelanguage.googleapis.com/v1beta/models/' + model +
     ':generateContent?key=' + process.env.GEMINI_API_KEY,
     {
       method: 'POST',
@@ -189,8 +178,34 @@ async function gradeWithGemini(brief, frames, transcript) {
   return sanitizeReport(JSON.parse(text));
 }
 
+/* ---------- fallback chain: try models in order, log each failure ---------- */
+async function gradeWithFallbackChain(brief, frames, transcript) {
+  var lastErr = null, i, report;
+  for (i = 0; i < GEMINI_MODELS.length; i++) {
+    try {
+      return await gradeWithGemini(brief, frames, transcript, GEMINI_MODELS[i]);
+    } catch (e) {
+      console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
+      lastErr = e;
+      await sleep(1200);
+    }
+  }
+  for (i = 0; i < GROQ_FALLBACK_MODELS.length; i++) {
+    try {
+      report = await gradeWithGroqFallback(brief, transcript, GROQ_FALLBACK_MODELS[i]);
+      report.visual_analysis_unavailable = true;
+      return report;
+    } catch (e2) {
+      console.error('groq fallback failed [' + GROQ_FALLBACK_MODELS[i] + ']:', e2 && e2.message);
+      lastErr = e2;
+      await sleep(1200);
+    }
+  }
+  throw lastErr || new Error('all_grading_models_failed');
+}
+
 /* ---------- fallback: Groq chat, transcript + brief only ---------- */
-async function gradeWithGroqFallback(brief, transcript) {
+async function gradeWithGroqFallback(brief, transcript, model) {
   var r = await fetch(GROQ_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -198,7 +213,7 @@ async function gradeWithGroqFallback(brief, transcript) {
       Authorization: 'Bearer ' + process.env.GROQ_API_KEY
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: model,
       response_format: { type: 'json_object' },
       temperature: 0.7,
       max_tokens: 3000,
