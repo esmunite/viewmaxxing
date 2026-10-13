@@ -66,8 +66,7 @@ body {
 /* ---------- App shell ---------- */
 #view-app { max-width: 880px; margin: 0 auto; padding: 20px 20px 40px; }
 .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
-.brand { font-weight: 700; font-size: 19px; display: flex; align-items: center; gap: 10px; letter-spacing: -0.01em; }
-.brand-bennett { width: 34px; height: auto; }
+.brand { font-weight: 700; font-size: 19px; display: flex; align-items: center; gap: 6px; letter-spacing: -0.01em; }
 .header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .quota-pill { font-size: 13px; color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 999px; padding: 7px 14px; font-weight: 600; }
 .nav-link { text-decoration: none; font-size: 14px; }
@@ -141,7 +140,7 @@ body {
 #progress-text { font-size: 13px; color: var(--muted); }
 
 /* ---------- Report ---------- */
-.loading-bennett { width: 110px; height: auto; display: block; margin: 48px auto 18px; animation: floaty 3s ease-in-out infinite; }
+.loading-star { font-size: 64px; color: #c98f3d; text-align: center; display: block; margin: 48px auto 18px; animation: floaty 3s ease-in-out infinite; }
 #report-loading p { text-align: center; color: var(--muted); }
 
 .bennett-take {
@@ -149,7 +148,7 @@ body {
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 20px 22px; margin-bottom: 22px;
 }
-.bennett-take img { width: 74px; height: auto; flex-shrink: 0; }
+.take-star { font-size: 44px; color: #c98f3d; flex-shrink: 0; line-height: 1; }
 .bennett-take h3 { margin: 0 0 6px; font-size: 17px; }
 .bennett-take p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 
@@ -203,7 +202,6 @@ body {
 .doc-wrap th, .doc-wrap td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .doc-wrap th { color: var(--muted); font-weight: 600; }
 .doc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px; }
-.doc-bennett { width: 120px; height: auto; margin-bottom: 6px; }
 
 @media (max-width: 560px) {
   .landing-wrap h1 { font-size: 38px; }
@@ -386,7 +384,7 @@ html { scroll-behavior: smooth; }
   92%, 100% { transform: translateX(130%); }
 }
 .score-demo-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-.score-demo-kicker { font-size: 15px; font-weight: 700; color: #0b1220; letter-spacing: -0.01em; }
+.score-demo-kicker { font-size: 21px; font-weight: 700; color: #0b1220; letter-spacing: -0.02em; }
 .score-demo-tag {
   font-size: 11px; font-weight: 600; color: #92690f;
   background: #fdf3e0; border: 1px solid #f3dfae;
@@ -425,3 +423,11 @@ html { scroll-behavior: smooth; }
   }
   html { scroll-behavior: auto; }
 }
+
+/* ---------- platform logo lockups (Works with marquee) ---------- */
+.plat {
+  display: inline-flex; align-items: center; gap: 9px;
+  color: #3a4556; font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.plat svg { width: 21px; height: 21px; flex-shrink: 0; }

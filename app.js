@@ -456,7 +456,7 @@
     html += '<div class="score-row">' +
       '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '"><span class="val" data-score="' + rep.creative_quality + '">0</span><span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +
       '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '"><span class="val" data-score="' + rep.goal_alignment + '">0</span><span class="of">/100</span></div><div class="lbl">Goal alignment</div></div></div>';
-    html = '<div class="bennett-take"><img src="bennett.webp" alt="Bennett"><div><h3>Bennett\'s take</h3><p>' +
+    html = '<div class="bennett-take"><span class="take-star" aria-hidden="true">✦</span><div><h3>Bennett\'s take</h3><p>' +
       bennettTake(Math.round(((rep.creative_quality || 0) + (rep.goal_alignment || 0)) / 2)) +
       '</p></div></div>' + html;
 

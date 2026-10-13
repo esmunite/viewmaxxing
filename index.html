@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bennett — your AI video coach</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="bennett.webp">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90' fill='%23c98f3d'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -57,8 +57,8 @@
       <div class="partner-row">
         <span class="partner-label">Works with:</span>
         <div class="marquee"><div class="marquee-track">
-          <span>TikTok</span><span>Instagram Reels</span><span>YouTube Shorts</span><span>Paid ads</span>
-          <span>TikTok</span><span>Instagram Reels</span><span>YouTube Shorts</span><span>Paid ads</span>
+          <span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 18.5a3.2 3.2 0 1 0 3.2 3.2V8.2c.6 2.3 2.4 4 4.8 4.2"/></svg>TikTok</span><span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5.5" width="17" height="13" rx="4.5"/><circle cx="12" cy="12" r="3.2"/></svg>Instagram Reels</span><span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6.5" width="18" height="11" rx="3.5"/><path d="M10.6 9.9v4.2l3.8-2.1z" fill="currentColor" stroke="none"/></svg>YouTube Shorts</span><span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 12V6.5A2 2 0 0 1 5.5 4.5H12l8.5 8.5-8 8z"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/></svg>Paid ads</span>
+          <span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 18.5a3.2 3.2 0 1 0 3.2 3.2V8.2c.6 2.3 2.4 4 4.8 4.2"/></svg>TikTok</span><span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5.5" width="17" height="13" rx="4.5"/><circle cx="12" cy="12" r="3.2"/></svg>Instagram Reels</span><span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6.5" width="18" height="11" rx="3.5"/><path d="M10.6 9.9v4.2l3.8-2.1z" fill="currentColor" stroke="none"/></svg>YouTube Shorts</span><span class="plat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 12V6.5A2 2 0 0 1 5.5 4.5H12l8.5 8.5-8 8z"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/></svg>Paid ads</span>
         </div></div>
       </div>
     </div>
@@ -74,7 +74,7 @@
 <!-- ============ VIEW: APP SHELL ============ -->
 <section id="view-app" class="view hidden">
   <header class="app-header">
-    <div class="brand"><img src="bennett.webp" alt="Bennett" class="brand-bennett">Bennett</div>
+    <div class="brand">Bennett<span class="brand-star">✦</span></div>
     <div class="header-right">
       <span id="quota-pill" class="quota-pill">…</span>
       <a href="/how.html" class="btn btn-ghost nav-link">How grading works</a>
@@ -164,7 +164,7 @@
   <!-- STEP 3: REPORT -->
   <div id="pane-report" class="pane hidden">
     <div id="report-loading" class="hidden">
-      <img src="bennett.webp" alt="Bennett" class="loading-bennett">
+      <div class="loading-star" aria-hidden="true">✦</div>
       <p>Bennett's watching your video… about 30–60 seconds.</p>
     </div>
     <div id="report-body"></div>
