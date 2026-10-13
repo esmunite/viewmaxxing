@@ -115,6 +115,29 @@
     })();
   });
 
+  /* ---------------- Bennett live character ---------------- */
+  (function () {
+    var sprite = document.getElementById('bennett-sprite');
+    if (!sprite) return;
+    var FRAMES = ['bennett-light.webp', 'bennett-wave-1.webp', 'bennett-wave-2.webp'];
+    FRAMES.forEach(function (s) { var im = new Image(); im.src = s; }); // preload, no flicker
+    var waving = false;
+    function wave() {
+      if (waving) return;
+      waving = true;
+      var seq = [1, 2, 1, 2, 1, 0], i = 0;
+      var t = setInterval(function () {
+        sprite.src = FRAMES[seq[i]];
+        i++;
+        if (i >= seq.length) { clearInterval(t); waving = false; }
+      }, 200);
+    }
+    setTimeout(wave, 2500);   // wave hello on arrival
+    setInterval(wave, 8000);   // ...and every so often
+    var actor = document.getElementById('bennett-actor');
+    if (actor) actor.addEventListener('click', wave); // click him, he waves
+  })();
+
   /* ---------------- auth buttons ---------------- */
   document.addEventListener('click', function (e) {
     if (e.target.closest('#btn-google-modal')) {

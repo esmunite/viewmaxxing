@@ -252,8 +252,7 @@ body {
 
 .hero-visual { position: relative; display: flex; justify-content: center; }
 .hero-card {
-  background: #ffffff; border-radius: 26px; padding: 14px;
-  box-shadow: 0 28px 64px rgba(16, 24, 40, 0.14);
+  background: transparent; box-shadow: none; padding: 0;
 }
 .hero-card img { width: 100%; max-width: 330px; height: auto; border-radius: 18px; display: block; }
 .float-slow { animation: floaty 6s ease-in-out infinite; }
@@ -356,3 +355,14 @@ body {
   border-radius: 999px; font-weight: 700; padding: 15px 34px; font-size: 16px;
 }
 .btn-tan:hover { border-color: #d9a05b; opacity: 0.92; transform: translateY(-1px); }
+
+/* ============ Bennett live character ============ */
+.bennett-actor { animation: roam 16s ease-in-out infinite; cursor: pointer; }
+.bennett-actor img { width: 100%; max-width: 330px; height: auto; display: block; }
+@keyframes roam {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  20% { transform: translate(26px, -24px) rotate(2.5deg); }
+  40% { transform: translate(-22px, -8px) rotate(-2deg); }
+  60% { transform: translate(18px, 16px) rotate(2deg); }
+  80% { transform: translate(-26px, 6px) rotate(-2.5deg); }
+}
