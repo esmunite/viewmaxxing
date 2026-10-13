@@ -54,11 +54,77 @@
     refreshQuota();
   }
 
+  /* ---------------- auth modal (login / signup) ---------------- */
+  var authMode = 'login';
+
+  function openAuth(mode) {
+    setAuthTab(mode === 'signup' ? 'signup' : 'login');
+    $('auth-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeAuth() {
+    if (!$('auth-modal')) return;
+    $('auth-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+  function setAuthTab(mode) {
+    authMode = mode;
+    document.querySelectorAll('.auth-tab').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-tab') === mode);
+    });
+    $('btn-email-submit').textContent = mode === 'signup' ? 'Create account' : 'Log in';
+    $('auth-note').textContent = mode === 'signup' ? 'Free forever · 3 grades a day.' : 'Welcome back.';
+    $('auth-error').classList.add('hidden');
+    $('auth-success').classList.add('hidden');
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeAuth();
+  });
+
+  document.addEventListener('submit', function (e) {
+    if (e.target.id !== 'email-auth-form') return;
+    e.preventDefault();
+    (async function () {
+      var email = $('auth-email').value.trim();
+      var pw = $('auth-password').value;
+      var err = $('auth-error'), ok = $('auth-success');
+      err.classList.add('hidden'); ok.classList.add('hidden');
+      if (!email || pw.length < 6) {
+        err.textContent = 'Enter your email and a password (6+ characters).';
+        err.classList.remove('hidden');
+        return;
+      }
+      $('btn-email-submit').disabled = true;
+      try {
+        if (authMode === 'signup') {
+          var r = await sb.auth.signUp({ email: email, password: pw });
+          if (r.error) throw r.error;
+          ok.textContent = 'Account created — check your email for a confirmation link, then log in.';
+          ok.classList.remove('hidden');
+        } else {
+          var r2 = await sb.auth.signInWithPassword({ email: email, password: pw });
+          if (r2.error) throw r2.error;
+          closeAuth();
+        }
+      } catch (e2) {
+        err.textContent = e2.message || 'Something went wrong.';
+        err.classList.remove('hidden');
+      }
+      $('btn-email-submit').disabled = false;
+    })();
+  });
+
   /* ---------------- auth buttons ---------------- */
   document.addEventListener('click', function (e) {
-    if (e.target.closest('#btn-google') || e.target.closest('.js-get-started')) {
+    if (e.target.closest('#btn-google-modal')) {
       sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
     }
+    var opener = e.target.closest('[data-auth-open]');
+    if (opener) openAuth(opener.getAttribute('data-auth-open'));
+    if (e.target.closest('#auth-close') || e.target.id === 'auth-modal') closeAuth();
+    var tab = e.target.closest('.auth-tab');
+    if (tab) setAuthTab(tab.getAttribute('data-tab'));
     if (e.target.closest('#btn-signout')) { sb.auth.signOut(); }
     if (e.target.closest('#btn-history')) { loadHistory(); }
     if (e.target.closest('#btn-back-main')) { showPane(brief ? 'pane-upload' : 'pane-brief'); }

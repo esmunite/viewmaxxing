@@ -300,3 +300,59 @@ body {
   .hero-panel { padding: 52px 24px 36px; }
   .landing-page { padding: 14px 14px 56px; }
 }
+
+/* ============ Auth modal ============ */
+.modal {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(11, 18, 32, 0.55);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: paneIn 0.25s ease both;
+}
+.modal-card {
+  background: #ffffff; border-radius: 24px;
+  padding: 34px 34px 30px; width: 100%; max-width: 400px;
+  position: relative; text-align: center;
+  box-shadow: 0 32px 80px rgba(11, 18, 32, 0.28);
+  max-height: 92vh; overflow-y: auto;
+}
+.modal-close {
+  position: absolute; top: 12px; right: 18px;
+  background: none; border: none; font-size: 28px; line-height: 1;
+  cursor: pointer; color: #667085; padding: 4px;
+}
+.modal-close:hover { color: #0b1220; }
+.modal-bennett { width: 86px; height: auto; margin-bottom: 4px; }
+.auth-tabs {
+  display: flex; background: #f2f4f7; border-radius: 999px;
+  padding: 4px; margin: 16px 0 20px;
+}
+.auth-tab {
+  flex: 1; border: none; background: none; padding: 10px;
+  border-radius: 999px; font-size: 14px; font-weight: 600;
+  color: #667085; cursor: pointer; transition: all 0.2s ease;
+}
+.auth-tab.active { background: #ffffff; color: #0b1220; box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12); }
+.btn-block { width: 100%; }
+.divider { display: flex; align-items: center; gap: 12px; color: #98a2b3; font-size: 13px; margin: 20px 0; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #e4e9f2; }
+#email-auth-form input {
+  width: 100%; padding: 13px 15px; margin-bottom: 10px;
+  border: 1.5px solid #e4e9f2; border-radius: 12px; font-size: 15px; color: #0b1220;
+  transition: border-color 0.2s ease;
+}
+#email-auth-form input:focus { outline: none; border-color: #c98f3d; }
+#email-auth-form .error { text-align: left; }
+.success {
+  color: #15803d; font-size: 14px; text-align: left;
+  background: #f0fdf4; border: 1px solid #bbf7d0;
+  padding: 10px 14px; border-radius: 10px; margin: 0 0 12px;
+}
+.auth-note { color: #667085; font-size: 13px; margin: 16px 0 0; }
+
+/* ---------- Landing additions ---------- */
+.btn-tan {
+  background: #d9a05b; border-color: #d9a05b; color: #171310;
+  border-radius: 999px; font-weight: 700; padding: 15px 34px; font-size: 16px;
+}
+.btn-tan:hover { border-color: #d9a05b; opacity: 0.92; transform: translateY(-1px); }
