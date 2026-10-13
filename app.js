@@ -73,7 +73,7 @@
       t.classList.toggle('active', t.getAttribute('data-tab') === mode);
     });
     $('btn-email-submit').textContent = mode === 'signup' ? 'Create account' : 'Log in';
-    $('auth-note').textContent = mode === 'signup' ? 'Free forever · 3 grades a day.' : 'Welcome back.';
+    $('auth-note').textContent = mode === 'signup' ? '3 video grades a day \u2013 no credit card required.' : 'Welcome back.';
     $('auth-error').classList.add('hidden');
     $('auth-success').classList.add('hidden');
   }
