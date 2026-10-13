@@ -1,4 +1,4 @@
-/* POST /api/analyze â€” grade one video.
+/* POST /api/analyze — grade one video.
    Body: { brief, frames:[base64 jpeg...], audioB64 (base64 wav), fileName }
    Steps: verify Supabase JWT -> check daily quota (3/day UTC) -> Groq Whisper
    transcript -> Gemini vision grading -> fallback chain -> save report -> return.
@@ -130,7 +130,29 @@ function buildPrompt(brief, transcript) {
     brief.niche ? '- Niche: ' + brief.niche : '',
     brief.offer ? '- Product/offer: ' + brief.offer : '',
     'TRANSCRIPT:', transcript || '(no speech detected)',
+    '',
+    'COACHING FRAMEWORKS - use these by name in your feedback:',
+    'HOOK ARCHETYPES (the first 1-3 seconds decide everything):',
+    '1. Pattern interrupt: something visually or verbally unexpected in second 0-1 that breaks the scroll.',
+    '2. Open loop: start a question or promise a payoff, then delay the answer ("wait for the last rep").',
+    '3. Bold or negative claim: "Stop doing X", "You are wasting your time if...".',
+    '4. Numbered promise: "3 mistakes killing your gains".',
+    '5. Direct question: say the viewer\'s exact pain out loud.',
+    '6. In-medias-res: start mid-action. Zero intro, zero greeting.',
+    '7. Relatable POV: "POV: you just started lifting and...".',
+    'A great hook makes a specific promise to a specific viewer in under 3 seconds. A greeting ("hey guys") is not a hook.',
+    'PACING: cut or change something every 1-3 seconds; no dead air over half a second; front-load the value; end in a way that loops or teases part 2.',
+    'VISUALS: face or action in frame 1; 9:16 filled with no black bars; captions burned in and readable on a phone screen; light on the subject\'s face.',
+    'AUDIO: voice clearly above the music; a hook sound in the first second; trending audio helps reach, original audio builds brand.',
+    'CTA MODELS: direct ("follow for part 2"), value exchange ("comment PLAN and I\'ll send my split"), loop ("watch again to catch it").',
+    '',
+    'SCORING RUBRIC (be honest - most videos score 30-60):',
+    '85+: exceptional, would stand out in a competitive feed. 60-84: solid with clear gaps. 40-59: average and forgettable. Below 40: fundamental problems.',
+    'Judge each dimension against what the best creators do, not against effort.',
+    '',
     'Score honestly on 0-100. Be specific and blunt. Never predict views or virality.',
+    'In "fixes", name the exact framework to apply and give a concrete rewrite or example - never generic advice.',
+    'In "hook_rewrites", write 3 opening lines, each using a DIFFERENT archetype from the list above.',
     'Respond with ONLY this JSON (no markdown, no extra text):',
     '{',
     ' "creative_quality": <0-100: hook strength, editing, storytelling, presentation>,',
