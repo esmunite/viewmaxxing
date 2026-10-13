@@ -21,8 +21,10 @@
     var sess = await sb.auth.getSession();
     session = sess.data.session || null;
     sb.auth.onAuthStateChange(function (_ev, s) {
-      session = s;
-      render();
+      var wasIn = !!session;
+      session = s || null;
+      if (!!session !== wasIn) render();  // sign in/out: full reset
+      else if (session) refreshQuota();   // token refresh (e.g. tab regains focus): keep current step
     });
     render();
   }
@@ -304,8 +306,8 @@
       html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.</div>';
     }
     html += '<div class="score-row">' +
-      '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '">' + rep.creative_quality + '</div><div class="lbl">Creative quality</div></div>' +
-      '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '">' + rep.goal_alignment + '</div><div class="lbl">Goal alignment</div></div></div>';
+      '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '">' + rep.creative_quality + '<span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +
+      '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '">' + rep.goal_alignment + '<span class="of">/100</span></div><div class="lbl">Goal alignment</div></div></div>';
 
     html += '<div class="report-section"><h3>Breakdown</h3>';
     Object.keys(dimNames).forEach(function (k) {
