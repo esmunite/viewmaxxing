@@ -371,3 +371,8 @@ body {
   60% { transform: rotate(-7deg) translateY(-10px); }
   80% { transform: rotate(5deg) translateY(0); }
 }
+
+/* ============ Bennett left, big ============ */
+.hero-bennett-left { grid-template-columns: 1.12fr 1fr; }
+.hero-bennett-left .bennett-actor img { max-width: 470px; }
+.hero-side { display: flex; flex-direction: column; gap: 40px; justify-content: center; }

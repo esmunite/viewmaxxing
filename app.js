@@ -120,6 +120,8 @@
     var sprite = document.getElementById('bennett-sprite');
     var actor = document.getElementById('bennett-actor');
     if (!sprite || !actor) return;
+    var FACE = ['bennett-light.webp', 'bennett-joy.webp'];
+    FACE.forEach(function (s) { var im = new Image(); im.src = s; }); // preload, no flicker
     var waving = false, hoverCooldown = false;
     function wave() {
       if (waving) return;
@@ -132,17 +134,26 @@
         waving = false;
       }, 950);
     }
+    function facePulse() { // happy face flash, like a gif
+      sprite.src = FACE[1];
+      setTimeout(function () { sprite.src = FACE[0]; }, 500);
+    }
     function scheduleWave() {
-      var delay = 12000 + Math.random() * 8000; // every 12–20s, organic timing
+      var delay = 20000 + Math.random() * 10000; // every 20–30s
       setTimeout(function () { wave(); scheduleWave(); }, delay);
     }
-    setTimeout(wave, 3000); // hello on arrival
+    function scheduleFace() {
+      var delay = 9000 + Math.random() * 5000; // every 9–14s, the main "alive" signal
+      setTimeout(function () { facePulse(); scheduleFace(); }, delay);
+    }
+    setTimeout(function () { wave(); facePulse(); }, 3000); // hello on arrival
     scheduleWave();
-    actor.addEventListener('click', wave);
+    scheduleFace();
+    actor.addEventListener('click', function () { wave(); facePulse(); });
     actor.addEventListener('mouseenter', function () { // poke him, he reacts
       if (hoverCooldown) return;
       hoverCooldown = true;
-      wave();
+      wave(); facePulse();
       setTimeout(function () { hoverCooldown = false; }, 4000);
     });
   })();
