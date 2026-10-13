@@ -357,12 +357,17 @@ body {
 .btn-tan:hover { border-color: #d9a05b; opacity: 0.92; transform: translateY(-1px); }
 
 /* ============ Bennett live character ============ */
-.bennett-actor { animation: roam 16s ease-in-out infinite; cursor: pointer; }
+.bennett-actor { animation: idle-bob 6s ease-in-out infinite; cursor: pointer; }
 .bennett-actor img { width: 100%; max-width: 330px; height: auto; display: block; }
-@keyframes roam {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  20% { transform: translate(26px, -24px) rotate(2.5deg); }
-  40% { transform: translate(-22px, -8px) rotate(-2deg); }
-  60% { transform: translate(18px, 16px) rotate(2deg); }
-  80% { transform: translate(-26px, 6px) rotate(-2.5deg); }
+@keyframes idle-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.bennett-wiggler.waving { animation: wiggle 0.9s ease-in-out; }
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  20% { transform: rotate(-9deg) translateY(-10px); }
+  40% { transform: rotate(7deg) translateY(0); }
+  60% { transform: rotate(-7deg) translateY(-10px); }
+  80% { transform: rotate(5deg) translateY(0); }
 }

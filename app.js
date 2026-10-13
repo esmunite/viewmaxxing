@@ -115,27 +115,36 @@
     })();
   });
 
-  /* ---------------- Bennett live character ---------------- */
+  /* ---------------- Bennett live character (Duolingo-style: idles, perks up sometimes) ---------------- */
   (function () {
     var sprite = document.getElementById('bennett-sprite');
-    if (!sprite) return;
-    var FRAMES = ['bennett-light.webp', 'bennett-wave-1.webp', 'bennett-wave-2.webp'];
-    FRAMES.forEach(function (s) { var im = new Image(); im.src = s; }); // preload, no flicker
-    var waving = false;
+    var actor = document.getElementById('bennett-actor');
+    if (!sprite || !actor) return;
+    var waving = false, hoverCooldown = false;
     function wave() {
       if (waving) return;
       waving = true;
-      var seq = [1, 2, 1, 2, 1, 0], i = 0;
-      var t = setInterval(function () {
-        sprite.src = FRAMES[seq[i]];
-        i++;
-        if (i >= seq.length) { clearInterval(t); waving = false; }
-      }, 200);
+      sprite.classList.remove('waving');
+      void sprite.offsetWidth; // restart the animation
+      sprite.classList.add('waving');
+      setTimeout(function () {
+        sprite.classList.remove('waving');
+        waving = false;
+      }, 950);
     }
-    setTimeout(wave, 2500);   // wave hello on arrival
-    setInterval(wave, 8000);   // ...and every so often
-    var actor = document.getElementById('bennett-actor');
-    if (actor) actor.addEventListener('click', wave); // click him, he waves
+    function scheduleWave() {
+      var delay = 12000 + Math.random() * 8000; // every 12–20s, organic timing
+      setTimeout(function () { wave(); scheduleWave(); }, delay);
+    }
+    setTimeout(wave, 3000); // hello on arrival
+    scheduleWave();
+    actor.addEventListener('click', wave);
+    actor.addEventListener('mouseenter', function () { // poke him, he reacts
+      if (hoverCooldown) return;
+      hoverCooldown = true;
+      wave();
+      setTimeout(function () { hoverCooldown = false; }, 4000);
+    });
   })();
 
   /* ---------------- auth buttons ---------------- */
