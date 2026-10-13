@@ -27,6 +27,7 @@
       else if (session) refreshQuota();   // token refresh (e.g. tab regains focus): keep current step
     });
     render();
+    initReveals();
   }
 
   function authHeader() {
@@ -55,7 +56,7 @@
 
   /* ---------------- auth buttons ---------------- */
   document.addEventListener('click', function (e) {
-    if (e.target.closest('#btn-google')) {
+    if (e.target.closest('#btn-google') || e.target.closest('.js-get-started')) {
       sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
     }
     if (e.target.closest('#btn-signout')) { sb.auth.signOut(); }
@@ -298,6 +299,43 @@
   /* ---------------- report render ---------------- */
   function scoreClass(n) { return n >= 75 ? 'score-good' : (n >= 50 ? 'score-mid' : 'score-low'); }
 
+  function bennettTake(avg) {
+    if (avg >= 85) return 'Exceptional. This one is ready — protect what is working and test the hook rewrites below.';
+    if (avg >= 60) return 'Solid foundation. Work the fix list top-down and this climbs fast.';
+    if (avg >= 40) return 'Average right now — which means big upside. Start with fix #1.';
+    return 'Rough cut, honest grade. Work the fix list in order, then re-upload and watch the scores move.';
+  }
+
+  function animateScores() {
+    var els = document.querySelectorAll('#report-body .val[data-score]');
+    els.forEach(function (el) {
+      var target = parseInt(el.getAttribute('data-score'), 10) || 0;
+      var start = null, dur = 1100;
+      function tick(ts) {
+        if (!start) start = ts;
+        var p = Math.min(1, (ts - start) / dur);
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased);
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function initReveals() {
+    var els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function (el) { el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.1 });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
   function renderReport(rep) {
     var dims = rep.dimensions || {};
     var dimNames = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
@@ -306,8 +344,11 @@
       html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.</div>';
     }
     html += '<div class="score-row">' +
-      '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '">' + rep.creative_quality + '<span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +
-      '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '">' + rep.goal_alignment + '<span class="of">/100</span></div><div class="lbl">Goal alignment</div></div></div>';
+      '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '"><span class="val" data-score="' + rep.creative_quality + '">0</span><span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +
+      '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '"><span class="val" data-score="' + rep.goal_alignment + '">0</span><span class="of">/100</span></div><div class="lbl">Goal alignment</div></div></div>';
+    html = '<div class="bennett-take"><img src="bennett.webp" alt="Bennett"><div><h3>Bennett\'s take</h3><p>' +
+      bennettTake(Math.round(((rep.creative_quality || 0) + (rep.goal_alignment || 0)) / 2)) +
+      '</p></div></div>' + html;
 
     html += '<div class="report-section"><h3>Breakdown</h3>';
     Object.keys(dimNames).forEach(function (k) {
@@ -334,12 +375,13 @@
         rep.hook_rewrites.map(function (h) { return '<div class="hook-rw">“' + esc(h) + '”</div>'; }).join('') + '</div>';
     }
     $('report-body').innerHTML = html;
+    animateScores();
   }
 
   function downloadReport() {
     if (!lastReport) return;
     var r = lastReport, b = lastBrief || {};
-    var md = '# Content Rater report\n\n' +
+    var md = '# Bennett report\n\n' +
       'Goal: ' + (b.goal || '-') + ' | Platforms: ' + (b.platforms || []).join(', ') + '\n\n' +
       '## Scores\n- Creative quality: ' + r.creative_quality + '/100\n- Goal alignment: ' + r.goal_alignment + '/100\n\n';
     var dn = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
@@ -352,7 +394,7 @@
     var blob = new Blob([md], { type: 'text/markdown' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'content-rater-report.md';
+    a.download = 'bennett-report.md';
     document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }

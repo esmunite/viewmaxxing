@@ -3,31 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Content Rater — Bennett helps grade your video</title>
+<title>Bennett — your AI video coach</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="icon" href="bennett.webp">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
 <!-- ============ VIEW: LANDING ============ -->
 <section id="view-landing" class="view">
-  <div class="landing-wrap">
-    <p class="eyebrow">Content Rater</p>
-    <h1>Bennett helps grade your video.</h1>
-    <p class="subline">Extract frames, transcribe audio, identify scenes, hooks, pacing, and CTAs</p>
-    <p class="free-line">Free. Videos are processed by free-tier AI (Google/Groq).</p>
-    <button id="btn-google" class="btn btn-primary btn-google">
-      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-      Sign in with Google
-    </button>
-    <p class="tiny">3 free video grades per day. No credit card, ever.</p>
+  <div class="landing-page">
+    <nav class="pill-nav reveal">
+      <div class="pill-brand"><img src="bennett.webp" alt="Bennett">Bennett</div>
+      <div class="pill-links">
+        <a href="/how.html">How grading works</a>
+        <a href="#landing-steps">How it works</a>
+      </div>
+      <button class="btn btn-dark js-get-started">Get Started <span aria-hidden="true">→</span></button>
+    </nav>
+
+    <div class="hero-panel reveal">
+      <h1 class="hero-h1">Where Creators<br>Come to <em>Score Higher</em></h1>
+      <div class="hero-grid">
+        <div class="hero-stat">
+          <div class="stat-num">3</div>
+          <div class="stat-label">Free grades<br>every day</div>
+          <div class="stat-sub">No credit card, ever.</div>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-card float-slow">
+            <img src="bennett-light.webp" alt="Bennett, your AI video coach">
+          </div>
+          <span class="spark spark-1" aria-hidden="true">✦</span>
+          <span class="spark spark-2" aria-hidden="true">✦</span>
+          <span class="spark spark-3" aria-hidden="true">✦</span>
+        </div>
+        <div class="hero-cta">
+          <p>Upload any video. Bennett grades your hook, visuals, pacing, and audio — then tells you exactly what to fix.</p>
+          <button id="btn-google" class="btn btn-google">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+            Sign in with Google
+          </button>
+          <p class="tiny-dark">Free · 3 grades a day</p>
+        </div>
+      </div>
+      <div class="partner-row">
+        <span class="partner-label">Works with:</span>
+        <div class="marquee"><div class="marquee-track">
+          <span>TikTok</span><span>Instagram Reels</span><span>YouTube Shorts</span><span>Paid ads</span>
+          <span>TikTok</span><span>Instagram Reels</span><span>YouTube Shorts</span><span>Paid ads</span>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="how-strip reveal" id="landing-steps">
+      <div class="how-step"><span>1</span><p>Set your goal</p></div>
+      <div class="how-step"><span>2</span><p>Upload your video</p></div>
+      <div class="how-step"><span>3</span><p>Get your score</p></div>
+    </div>
   </div>
 </section>
 
 <!-- ============ VIEW: APP SHELL ============ -->
 <section id="view-app" class="view hidden">
   <header class="app-header">
-    <div class="brand">Content Rater</div>
+    <div class="brand"><img src="bennett.webp" alt="Bennett" class="brand-bennett">Bennett</div>
     <div class="header-right">
       <span id="quota-pill" class="quota-pill">…</span>
       <a href="/how.html" class="btn btn-ghost nav-link">How grading works</a>
@@ -45,7 +85,7 @@
   <!-- STEP 1: CREATIVE BRIEF -->
   <div id="pane-brief" class="pane">
     <h2>Creative Brief</h2>
-    <p class="pane-sub">Only what the video itself can't tell us. Everything else, the AI figures out on its own.</p>
+    <p class="pane-sub">Only what the video itself can't tell us. Bennett figures out the rest.</p>
 
     <div class="field">
       <div class="field-head"><label>Primary goal</label><span class="req">Required</span></div>
@@ -92,8 +132,8 @@
 
   <!-- STEP 2: ADD VIDEO -->
   <div id="pane-upload" class="pane hidden">
-    <h2>Bennett helps grade your video.</h2>
-    <p class="pane-sub">Extract frames, transcribe audio, identify scenes, hooks, pacing, and CTAs</p>
+    <h2>Drop your video in.</h2>
+    <p class="pane-sub">Bennett watches the frames, reads the transcript, and scores it all.</p>
 
     <div id="brief-summary" class="brief-summary"></div>
 
@@ -117,8 +157,8 @@
   <!-- STEP 3: REPORT -->
   <div id="pane-report" class="pane hidden">
     <div id="report-loading" class="hidden">
-      <div class="spinner"></div>
-      <p>Grading your video… this takes about 30–60 seconds.</p>
+      <img src="bennett.webp" alt="Bennett" class="loading-bennett">
+      <p>Bennett's watching your video… about 30–60 seconds.</p>
     </div>
     <div id="report-body"></div>
     <div class="report-actions hidden" id="report-actions">
@@ -130,9 +170,12 @@
   <!-- HISTORY -->
   <div id="pane-history" class="pane hidden">
     <h2>Your past grades</h2>
+    <p class="pane-sub">Watch your scores climb.</p>
     <div id="history-list"></div>
     <button id="btn-back-main" class="btn btn-ghost">← Back</button>
   </div>
+
+  <footer class="app-footer">Bennett grades free · 3 videos a day</footer>
 </section>
 
 <script src="app.js"></script>
