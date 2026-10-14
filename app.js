@@ -100,8 +100,12 @@
         if (authMode === 'signup') {
           var r = await sb.auth.signUp({ email: email, password: pw });
           if (r.error) throw r.error;
-          ok.textContent = 'Account created — check your email for a confirmation link, then log in.';
-          ok.classList.remove('hidden');
+          if (r.data && r.data.session) {
+            closeAuth(); // confirm-email off: straight in, the auth listener renders the app
+          } else {
+            ok.textContent = 'Account created — check your email for a confirmation link, then log in.';
+            ok.classList.remove('hidden');
+          }
         } else {
           var r2 = await sb.auth.signInWithPassword({ email: email, password: pw });
           if (r2.error) throw r2.error;
