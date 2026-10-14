@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bennett — your AI video coach</title>
+<title>BennettIQ — your AI video coach</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90' fill='%23c98f3d'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,44 +14,48 @@
 <section id="view-landing" class="view">
   <div class="landing-page">
     <nav class="pill-nav">
-      <div class="pill-brand">Bennett<span class="brand-star">✦</span></div>
+      <div class="pill-brand">BennettIQ<span class="brand-star">✦</span></div>
       <div class="pill-links">
-        <a href="/how.html">How grading works</a>
-        <a href="#landing-steps">How it works</a>
+        <a href="/how.html">How it works</a>
+        <a href="#platforms">Platforms</a>
       </div>
       <button class="btn btn-dark" data-auth-open="signup">Get Started <span aria-hidden="true">→</span></button>
     </nav>
 
     <div class="hero-panel reveal">
-      <h1 class="hero-h1">Stop Guessing.<br>Start Now to <em>Create Better Content.</em></h1>
-      <div class="hero-grid hero-demo">
-        <div class="hero-side">
-          <div class="hero-stat">
-            <div class="stat-num"><span id="stat-count">0</span></div>
-            <div class="stat-label">Free grades<br>every day</div>
-            <div class="stat-sub">No credit card, ever.</div>
+      <h1 class="hero-h1">Know your video<br><em>before you post it.</em></h1>
+      <p class="hero-sub">Upload a clip and get honest scores for creative quality and goal alignment — plus the fixes that actually move the needle. Free, 3 grades a day, no credit card.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-dark btn-lg" data-auth-open="signup">Get started free <span aria-hidden="true">→</span></button>
+        <a class="how-link" href="/how.html"><span class="play-dot" aria-hidden="true">▶</span> How it works</a>
+      </div>
+      <div class="hero-stage">
+        <div class="score-demo" id="score-demo" aria-hidden="true">
+          <div class="score-demo-top">
+            <span class="score-demo-title">Your video grade</span>
+            <span class="score-demo-tag">Sample</span>
           </div>
-          <p class="tiny-dark">Free · 3 grades a day · No credit card, ever</p>
+          <div class="score-demo-row">
+            <div class="score-demo-meta"><span>Creative quality</span><strong><span class="score-num" data-target="87">0</span>/100</strong></div>
+            <div class="score-demo-bar"><i data-w="87"></i></div>
+          </div>
+          <div class="score-demo-row">
+            <div class="score-demo-meta"><span>Goal alignment</span><strong><span class="score-num" data-target="92">0</span>/100</strong></div>
+            <div class="score-demo-bar"><i data-w="92"></i></div>
+          </div>
+          <p class="score-demo-line">Hook lands in the first 2 seconds — trim the slow intro.</p>
         </div>
-        <div class="hero-visual">
-          <div class="take-head">
-            <h2 class="take-title">Bennett's take</h2>
-            <p class="take-sub">Discover your video's strengths and weaknesses before you post. Understand how you can make your posts scroll-stopping and have persuasive storytelling.</p>
-          </div>
-          <div class="score-demo" id="score-demo" aria-hidden="true">
-            <div class="score-demo-top">
-              <span class="score-demo-tag">Sample grade</span>
-            </div>
-            <div class="score-demo-row">
-              <div class="score-demo-meta"><span>Creative quality</span><strong><span class="score-num" data-target="87">0</span>/100</strong></div>
-              <div class="score-demo-bar"><i data-w="87"></i></div>
-            </div>
-            <div class="score-demo-row">
-              <div class="score-demo-meta"><span>Goal alignment</span><strong><span class="score-num" data-target="92">0</span>/100</strong></div>
-              <div class="score-demo-bar"><i data-w="92"></i></div>
-            </div>
-            <p class="score-demo-line">Hook lands in the first 2 seconds — trim the slow intro.</p>
-          </div>
+        <div class="float-chip chip-a" aria-hidden="true">
+          <span class="chip-label">Hook strength</span>
+          <span class="chip-score">92<i>/100</i></span>
+        </div>
+        <div class="float-chip chip-b" aria-hidden="true">
+          <span class="chip-quote">“Trim the first 2 seconds.”</span>
+          <span class="chip-label">Top fix</span>
+        </div>
+        <div class="float-chip chip-c" aria-hidden="true">
+          <span class="chip-big">3</span>
+          <span class="chip-label">free grades<br>every day</span>
         </div>
       </div>
       <div class="partner-row">
@@ -68,13 +72,22 @@
       <div class="how-step"><span>2</span><p>Upload your video</p></div>
       <div class="how-step"><span>3</span><p>Get your score</p></div>
     </div>
+    <footer class="landing-footer">
+      <span>© 2026 BennettIQ</span>
+      <span class="footer-dot" aria-hidden="true">·</span>
+      <a href="/how.html">How it works</a>
+      <span class="footer-dot" aria-hidden="true">·</span>
+      <a href="/privacy.html">Privacy</a>
+      <span class="footer-dot" aria-hidden="true">·</span>
+      <a href="/terms.html">Terms</a>
+    </footer>
   </div>
 </section>
 
 <!-- ============ VIEW: APP SHELL ============ -->
 <section id="view-app" class="view hidden">
   <header class="app-header">
-    <div class="brand">Bennett<span class="brand-star">✦</span></div>
+    <div class="brand">BennettIQ<span class="brand-star">✦</span></div>
     <div class="header-right">
       <span id="quota-pill" class="quota-pill">…</span>
       <a href="/how.html" class="btn btn-ghost nav-link">How grading works</a>
@@ -92,7 +105,7 @@
   <!-- STEP 1: CREATIVE BRIEF -->
   <div id="pane-brief" class="pane">
     <h2>Creative Brief</h2>
-    <p class="pane-sub">Only what the video itself can't tell us. Bennett figures out the rest.</p>
+    <p class="pane-sub">Only what the video itself can't tell us. BennettIQ figures out the rest.</p>
 
     <div class="field">
       <div class="field-head"><label>Primary goal</label><span class="req">Required</span></div>
@@ -140,7 +153,7 @@
   <!-- STEP 2: ADD VIDEO -->
   <div id="pane-upload" class="pane hidden">
     <h2>Drop your video in.</h2>
-    <p class="pane-sub">Bennett watches the frames, reads the transcript, and scores it all.</p>
+    <p class="pane-sub">BennettIQ watches the frames, reads the transcript, and scores it all.</p>
 
     <div id="brief-summary" class="brief-summary"></div>
 
@@ -165,7 +178,7 @@
   <div id="pane-report" class="pane hidden">
     <div id="report-loading" class="hidden">
       <div class="loading-star" aria-hidden="true">✦</div>
-      <p>Bennett's watching your video… about 30–60 seconds.</p>
+      <p>BennettIQ's watching your video… about 30–60 seconds.</p>
     </div>
     <div id="report-body"></div>
     <div class="report-actions hidden" id="report-actions">
@@ -182,11 +195,11 @@
     <button id="btn-back-main" class="btn btn-ghost">← Back</button>
   </div>
 
-  <footer class="app-footer">Bennett grades free · 3 videos a day</footer>
+  <footer class="app-footer">BennettIQ grades free · 3 videos a day</footer>
 </section>
 
 <!-- ============ AUTH MODAL ============ -->
-<div id="auth-modal" class="modal hidden">
+<div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Log in or sign up">
   <div class="modal-card">
     <button class="modal-close" id="auth-close" aria-label="Close">×</button>
     <div class="auth-tabs">
@@ -199,13 +212,14 @@
     </button>
     <div class="divider"><span>or</span></div>
     <form id="email-auth-form" novalidate>
-      <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
-      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+      <input type="email" id="auth-email" placeholder="Email" autocomplete="email" aria-label="Email">
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" aria-label="Password">
       <p id="auth-error" class="error hidden"></p>
       <p id="auth-success" class="success hidden"></p>
       <button type="submit" class="btn btn-dark btn-block" id="btn-email-submit">Log in</button>
     </form>
     <p class="auth-note" id="auth-note">Welcome back.</p>
+    <p class="auth-consent">By continuing, you agree to our <a href="/terms.html">Terms</a> and <a href="/privacy.html">Privacy Policy</a>.</p>
   </div>
 </div>
 

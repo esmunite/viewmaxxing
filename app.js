@@ -61,6 +61,7 @@
     setAuthTab(mode === 'signup' ? 'signup' : 'login');
     $('auth-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    setTimeout(function () { var f = $('auth-email'); if (f) f.focus(); }, 60);
   }
   function closeAuth() {
     if (!$('auth-modal')) return;
@@ -460,7 +461,7 @@
     html += '<div class="score-row">' +
       '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '"><span class="val" data-score="' + rep.creative_quality + '">0</span><span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +
       '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '"><span class="val" data-score="' + rep.goal_alignment + '">0</span><span class="of">/100</span></div><div class="lbl">Goal alignment</div></div></div>';
-    html = '<div class="bennett-take"><span class="take-star" aria-hidden="true">✦</span><div><h3>Bennett\'s take</h3><p>' +
+    html = '<div class="bennett-take"><span class="take-star" aria-hidden="true">✦</span><div><h3>Your video grade</h3><p>' +
       bennettTake(Math.round(((rep.creative_quality || 0) + (rep.goal_alignment || 0)) / 2)) +
       '</p></div></div>' + html;
 
@@ -495,7 +496,7 @@
   function downloadReport() {
     if (!lastReport) return;
     var r = lastReport, b = lastBrief || {};
-    var md = '# Bennett report\n\n' +
+    var md = '# BennettIQ report\n\n' +
       'Goal: ' + (b.goal || '-') + ' | Platforms: ' + (b.platforms || []).join(', ') + '\n\n' +
       '## Scores\n- Creative quality: ' + r.creative_quality + '/100\n- Goal alignment: ' + r.goal_alignment + '/100\n\n';
     var dn = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
