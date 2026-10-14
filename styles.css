@@ -278,6 +278,9 @@ body {
   .hero-stat { text-align: center; }
   .hero-cta .btn-google { width: auto; }
   .pill-links { display: none; }
+  .take-head { flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+  .take-title { font-size: 36px; white-space: normal; }
+  .take-sub { max-width: 420px; }
 }
 @media (max-width: 560px) {
   .hero-panel { padding: 52px 24px 36px; }
@@ -360,7 +363,10 @@ html { scroll-behavior: smooth; }
 
 /* ---------- animated sample grade card ---------- */
 .hero-demo { grid-template-columns: 1fr 1.08fr; align-items: center; }
-.hero-visual { display: flex; justify-content: center; }
+.hero-visual { display: flex; flex-direction: column; align-items: center; }
+.take-head { display: flex; align-items: center; gap: 30px; margin-bottom: 28px; text-align: left; width: 100%; max-width: 560px; }
+.take-title { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; color: #0b1220; margin: 0; white-space: nowrap; line-height: 1; }
+.take-sub { font-size: 15px; line-height: 1.6; color: #475467; margin: 0; max-width: 300px; }
 .score-demo {
   position: relative; overflow: hidden;
   width: 100%; max-width: 430px;
@@ -386,8 +392,7 @@ html { scroll-behavior: smooth; }
   0%, 58% { transform: translateX(-130%); }
   92%, 100% { transform: translateX(130%); }
 }
-.score-demo-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-.score-demo-kicker { font-size: 28px; font-weight: 800; color: #0b1220; letter-spacing: -0.02em; }
+.score-demo-top { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 22px; }
 .score-demo-tag {
   font-size: 11px; font-weight: 600; color: #92690f;
   background: #fdf3e0; border: 1px solid #f3dfae;
