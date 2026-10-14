@@ -254,16 +254,21 @@ body {
 .tiny-dark { color: #667085; font-size: 13px; margin: 16px 0 0; }
 
 .partner-row {
-  display: flex; align-items: center; gap: 20px;
-  margin-top: 60px; padding-top: 30px;
+  margin-top: 56px; padding-top: 34px;
   border-top: 1px solid rgba(16, 24, 40, 0.09);
-  text-align: left;
 }
-.partner-label { color: #667085; font-size: 14px; white-space: nowrap; }
-.marquee { overflow: hidden; flex: 1; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-.marquee-track { display: flex; gap: 60px; width: max-content; animation: scrollX 26s linear infinite; }
-.marquee-track span { color: #3a4556; font-size: 15px; font-weight: 500; white-space: nowrap; }
-@keyframes scrollX { to { transform: translateX(-50%); } }
+.works-logos { display: flex; align-items: center; justify-content: center; gap: 46px; }
+.works-logo {
+  width: 68px; height: 68px; border-radius: 19px; display: inline-block;
+  box-shadow: 0 16px 34px rgba(16, 24, 40, 0.18);
+  animation: logo-float 5.5s ease-in-out infinite;
+}
+.works-logo.float-2 { animation-delay: 1.4s; }
+.works-logo.float-3 { animation-delay: 2.8s; }
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
 
 .landing-page .how-strip { margin-top: 26px; }
 .landing-page .how-step { background: #ffffff; border-color: #e4e9f2; box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05); }
@@ -424,10 +429,4 @@ html { scroll-behavior: smooth; }
   html { scroll-behavior: auto; }
 }
 
-/* ---------- platform logo lockups (Works with marquee) ---------- */
-.plat {
-  display: inline-flex; align-items: center; gap: 9px;
-  color: #3a4556; font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-.plat svg { width: 21px; height: 21px; flex-shrink: 0; }
+/* (platform lockups removed — logos-only row now) */
