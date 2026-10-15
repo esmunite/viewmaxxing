@@ -200,19 +200,20 @@ async function gradeWithGemini(brief, frames, transcript, model) {
   var text = j.candidates && j.candidates[0] && j.candidates[0].content &&
     j.candidates[0].content.parts && j.candidates[0].content.parts[0] &&
     j.candidates[0].content.parts[0].text;
-  if (!text) throw new Error('gemini empty');
+  if (!text) throw new Error('gemini empty ' + JSON.stringify(j).slice(0, 300));
   return sanitizeReport(JSON.parse(text));
 }
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
 async function gradeWithFallbackChain(brief, frames, transcript) {
-  var lastErr = null, i, report;
+  var lastErr = null, geminiErr = null, i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
     try {
       return await gradeWithGemini(brief, frames, transcript, GEMINI_MODELS[i]);
     } catch (e) {
       console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
       lastErr = e;
+      geminiErr = e;
       await sleep(1200);
     }
   }
@@ -220,6 +221,7 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
     try {
       report = await gradeWithGroqFallback(brief, transcript, GROQ_FALLBACK_MODELS[i]);
       report.visual_analysis_unavailable = true;
+      if (geminiErr) report.gemini_error = String(geminiErr.message || geminiErr).slice(0, 300);
       return report;
     } catch (e2) {
       console.error('groq fallback failed [' + GROQ_FALLBACK_MODELS[i] + ']:', e2 && e2.message);
