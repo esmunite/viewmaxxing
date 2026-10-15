@@ -213,22 +213,37 @@ async function gradeWithGemini(brief, frames, transcript, model) {
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
 async function gradeWithFallbackChain(brief, frames, transcript) {
-  var lastErr = null, geminiErr = null, i, report;
+  var lastErr = null, visionErr = null, i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
     try {
       return await gradeWithGemini(brief, frames, transcript, GEMINI_MODELS[i]);
     } catch (e) {
       console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
       lastErr = e;
-      geminiErr = e;
+      visionErr = e;
       await sleep(1200);
+    }
+  }
+  // OpenRouter free vision models (needs OPENROUTER_API_KEY in Vercel env). Skipped if unset.
+  if (process.env.OPENROUTER_API_KEY) {
+    var orModels = (process.env.OPENROUTER_VISION_MODEL ||
+      'dots-studio/dots-3-note-preview:free,inclusionai/ling-3.0-flash-vl:free').split(',');
+    for (i = 0; i < orModels.length; i++) {
+      try {
+        return await gradeWithOpenRouterVision(brief, frames, transcript, orModels[i].trim());
+      } catch (e3) {
+        console.error('openrouter vision failed [' + orModels[i] + ']:', e3 && e3.message);
+        lastErr = e3;
+        visionErr = e3;
+        await sleep(1200);
+      }
     }
   }
   for (i = 0; i < GROQ_FALLBACK_MODELS.length; i++) {
     try {
       report = await gradeWithGroqFallback(brief, transcript, GROQ_FALLBACK_MODELS[i]);
       report.visual_analysis_unavailable = true;
-      if (geminiErr) report.gemini_error = String(geminiErr.message || geminiErr).slice(0, 300);
+      if (visionErr) report.vision_error = String(visionErr.message || visionErr).slice(0, 300);
       return report;
     } catch (e2) {
       console.error('groq fallback failed [' + GROQ_FALLBACK_MODELS[i] + ']:', e2 && e2.message);
@@ -237,6 +252,43 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
     }
   }
   throw lastErr || new Error('all_grading_models_failed');
+}
+
+/* ---------- vision grading via OpenRouter free models (OpenAI-compatible) ---------- */
+async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
+  var content = [{ type: 'text', text: buildPrompt(brief, transcript) }];
+  frames.slice(0, 12).forEach(function (f) {
+    content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + f } });
+  });
+  var r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
+      'HTTP-Referer': 'https://theviewmaxxing.vercel.app',
+      'X-Title': 'BennettIQ'
+    },
+    body: JSON.stringify({
+      model: model,
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 4000,
+      messages: [
+        { role: 'system', content: 'You are a short-form video coach. Respond with ONLY valid JSON, no markdown.' },
+        { role: 'user', content: content }
+      ]
+    }),
+    signal: AbortSignal.timeout(25000)
+  });
+  if (!r.ok) {
+    var errBody = '';
+    try { errBody = (await r.text()).slice(0, 300); } catch (e0) {}
+    throw new Error('openrouter ' + r.status + ' ' + errBody);
+  }
+  var j = await r.json();
+  var text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  if (!text) throw new Error('openrouter empty ' + JSON.stringify(j).slice(0, 300));
+  return sanitizeReport(JSON.parse(text));
 }
 
 /* ---------- fallback: Groq chat, transcript + brief only ---------- */
