@@ -227,7 +227,7 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
   // OpenRouter free vision models (needs OPENROUTER_API_KEY in Vercel env). Skipped if unset.
   if (process.env.OPENROUTER_API_KEY) {
     var orModels = (process.env.OPENROUTER_VISION_MODEL ||
-      'dots-studio/dots-3-note-preview:free,inclusionai/ling-3.0-flash-vl:free').split(',');
+      'nvidia/nemotron-3.5-super-vl:free,thinkingmachines/inkling:free,dots-studio/dots-3-note-preview:free').split(',');
     for (i = 0; i < orModels.length; i++) {
       try {
         return await gradeWithOpenRouterVision(brief, frames, transcript, orModels[i].trim());
