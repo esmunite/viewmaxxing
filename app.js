@@ -456,7 +456,8 @@
     var dimNames = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
     var html = '';
     if (rep.visual_analysis_unavailable) {
-      html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.</div>';
+      var diag = rep.gemini_error ? ' <span class="fallback-diag">Error: ' + String(rep.gemini_error).replace(/</g, '&lt;') + '</span>' : '';
+      html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.' + diag + '</div>';
     }
     html += '<div class="score-row">' +
       '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '"><span class="val" data-score="' + rep.creative_quality + '">0</span><span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +

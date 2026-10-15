@@ -479,3 +479,5 @@ html { scroll-behavior: smooth; }
   color: #0b1220; margin: 0 0 22px;
 }
 .about-inner p { color: #475467; font-size: 17px; line-height: 1.7; margin: 0; }
+
+.fallback-diag { display: block; margin-top: 6px; font-size: 12px; opacity: 0.85; font-family: ui-monospace, monospace; word-break: break-word; }
