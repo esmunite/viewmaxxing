@@ -481,3 +481,10 @@ html { scroll-behavior: smooth; }
 .about-inner p { color: #475467; font-size: 17px; line-height: 1.7; margin: 0; }
 
 .fallback-diag { display: block; margin-top: 6px; font-size: 12px; opacity: 0.85; font-family: ui-monospace, monospace; word-break: break-word; }
+
+/* frames analyzed filmstrip */
+.frames-sub { color: var(--muted); font-size: 13px; margin: -4px 0 12px; }
+.frames-strip { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }
+.frame-thumb { flex: 0 0 auto; }
+.frame-thumb img { display: block; height: 132px; width: auto; max-width: 240px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: #141414; object-fit: cover; }
+.frame-thumb span { display: block; text-align: center; font-size: 11px; color: var(--muted); margin-top: 5px; font-variant-numeric: tabular-nums; }

@@ -8,6 +8,7 @@
   var prepared = null;      // { frames:[b64...], audioB64, fileName, duration }
   var lastReport = null;    // last rendered report (for download)
   var lastBrief = null;
+  var reportFrames = null;  // { frames:[b64...], duration } for the filmstrip (fresh grades only)
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -402,6 +403,7 @@
       }
       if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
       lastReport = data.report; lastBrief = brief;
+      reportFrames = prepared ? { frames: prepared.frames, duration: prepared.duration } : null;
       renderReport(data.report);
       $('report-actions').classList.remove('hidden');
       refreshQuota();
@@ -451,6 +453,23 @@
     els.forEach(function (el) { io.observe(el); });
   }
 
+  function fmtTime(sec) {
+    sec = Math.max(0, Math.round(sec));
+    return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2);
+  }
+
+  function framesStripHtml(rf) {
+    var fr = rf.frames, n = fr.length, dur = rf.duration || 0, h = '', i, t;
+    h += '<div class="report-section"><h3>Frames analyzed</h3>' +
+      '<p class="frames-sub">' + n + ' frames reviewed across the full video</p><div class="frames-strip">';
+    for (i = 0; i < n; i++) {
+      t = dur ? (dur * (i + 0.5) / n) : 0;
+      h += '<div class="frame-thumb"><img src="data:image/jpeg;base64,' + fr[i] +
+        '" alt="Frame ' + (i + 1) + ' of ' + n + '" loading="lazy"><span>' + fmtTime(t) + '</span></div>';
+    }
+    return h + '</div></div>';
+  }
+
   function renderReport(rep) {
     var dims = rep.dimensions || {};
     var dimNames = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
@@ -466,6 +485,9 @@
       bennettTake(Math.round(((rep.creative_quality || 0) + (rep.goal_alignment || 0)) / 2)) +
       '</p></div></div>' + html;
 
+    if (!rep.visual_analysis_unavailable && reportFrames && reportFrames.frames && reportFrames.frames.length) {
+      html += framesStripHtml(reportFrames);
+    }
     html += '<div class="report-section"><h3>Breakdown</h3>';
     Object.keys(dimNames).forEach(function (k) {
       if (dims[k]) html += '<div class="dim"><div class="dim-name">' + dimNames[k] + '</div><div class="dim-note">' + esc(dims[k]) + '</div></div>';
@@ -536,6 +558,7 @@
         el.addEventListener('click', function () {
           var it = items[parseInt(el.getAttribute('data-idx'), 10)];
           lastReport = it.report; lastBrief = it.brief;
+          reportFrames = null;
           renderReport(it.report);
           $('report-actions').classList.remove('hidden');
           $('report-loading').classList.add('hidden');
