@@ -106,7 +106,7 @@ async function transcribe(audioB64) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.GROQ_API_KEY },
     body: form,
-    signal: AbortSignal.timeout(45000)
+    signal: AbortSignal.timeout(30000)
   });
   if (!r.ok) throw new Error('whisper ' + r.status);
   var j = await r.json();
@@ -185,13 +185,13 @@ async function gradeWithGemini(brief, frames, transcript, model) {
     generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
   });
   // Retry transient 503/429 (free-tier demand spikes) with backoff before giving up on this model.
-  var waits = [5000, 12000], attempt = 0, r, errBody;
+  var waits = [4000], attempt = 0, r, errBody;
   while (true) {
     r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: reqBody,
-      signal: AbortSignal.timeout(40000)
+      signal: AbortSignal.timeout(25000)
     });
     if (r.ok) break;
     errBody = '';
