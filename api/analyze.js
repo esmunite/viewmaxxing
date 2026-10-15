@@ -176,7 +176,7 @@ function buildPrompt(brief, transcript) {
 async function gradeWithGemini(brief, frames, transcript, model) {
   var parts = [{ text: buildPrompt(brief, transcript) }];
   frames.slice(0, 12).forEach(function (f) {
-    parts.push({ inline_data: { mime_type: 'image/jpeg', data: f } });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: f } });
   });
   var r = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/' + model +
@@ -191,7 +191,11 @@ async function gradeWithGemini(brief, frames, transcript, model) {
       signal: AbortSignal.timeout(50000)
     }
   );
-  if (!r.ok) throw new Error('gemini ' + r.status);
+  if (!r.ok) {
+    var errBody = '';
+    try { errBody = (await r.text()).slice(0, 300); } catch (e0) {}
+    throw new Error('gemini ' + r.status + ' ' + errBody);
+  }
   var j = await r.json();
   var text = j.candidates && j.candidates[0] && j.candidates[0].content &&
     j.candidates[0].content.parts && j.candidates[0].content.parts[0] &&
