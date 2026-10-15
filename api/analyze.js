@@ -8,7 +8,7 @@
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-var GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest']; // vision grading, tried in order (Google gates 2.5 models to past users only)
+var GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash']; // vision grading, tried in order (Google gates 2.5 models to past users only)
 var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile']; // transcript-only, tried in order
 
 module.exports = async function handler(req, res) {
@@ -191,7 +191,7 @@ async function gradeWithGemini(brief, frames, transcript, model) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: reqBody,
-      signal: AbortSignal.timeout(25000)
+      signal: AbortSignal.timeout(20000)
     });
     if (r.ok) break;
     errBody = '';
