@@ -178,22 +178,29 @@ async function gradeWithGemini(brief, frames, transcript, model) {
   frames.slice(0, 12).forEach(function (f) {
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: f } });
   });
-  var r = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/' + model +
-    ':generateContent?key=' + process.env.GEMINI_API_KEY,
-    {
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model +
+    ':generateContent?key=' + process.env.GEMINI_API_KEY;
+  var reqBody = JSON.stringify({
+    contents: [{ parts: parts }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
+  });
+  // Retry transient 503/429 (free-tier demand spikes) with backoff before giving up on this model.
+  var waits = [5000, 12000], attempt = 0, r, errBody;
+  while (true) {
+    r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: parts }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
-      }),
-      signal: AbortSignal.timeout(50000)
-    }
-  );
-  if (!r.ok) {
-    var errBody = '';
+      body: reqBody,
+      signal: AbortSignal.timeout(40000)
+    });
+    if (r.ok) break;
+    errBody = '';
     try { errBody = (await r.text()).slice(0, 300); } catch (e0) {}
+    if ((r.status === 503 || r.status === 429) && attempt < waits.length) {
+      console.error('gemini [' + model + '] transient ' + r.status + ', retrying in ' + waits[attempt] + 'ms');
+      await sleep(waits[attempt++]);
+      continue;
+    }
     throw new Error('gemini ' + r.status + ' ' + errBody);
   }
   var j = await r.json();
