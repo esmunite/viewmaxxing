@@ -470,16 +470,6 @@ html { scroll-behavior: smooth; }
 .auth-consent { color: #667085; font-size: 12px; margin: 14px 0 0; line-height: 1.5; }
 .auth-consent a { color: #475467; }
 
-/* ============ About section ============ */
-.about-section { padding: 84px 24px 96px; text-align: center; }
-.about-inner { max-width: 680px; margin: 0 auto; }
-.about-inner h2 {
-  font-family: Georgia, 'Times New Roman', serif; font-weight: 400;
-  font-size: clamp(34px, 4.5vw, 52px); letter-spacing: -0.01em;
-  color: #0b1220; margin: 0 0 22px;
-}
-.about-inner p { color: #475467; font-size: 17px; line-height: 1.7; margin: 0; }
-
 .fallback-diag { display: block; margin-top: 6px; font-size: 12px; opacity: 0.85; font-family: ui-monospace, monospace; word-break: break-word; }
 
 /* frames analyzed filmstrip */
