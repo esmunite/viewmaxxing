@@ -570,8 +570,8 @@ button.dim-head { background: none; border: none; padding: 0; width: 100%; curso
 
 .about-navwrap { max-width: 1120px; margin: 0 auto; padding: 22px 28px 0; }
 .about-navwrap .pill-nav { margin-bottom: 0; }
-body.about-page { background: #edf0f7; color: #0b1220; }
-.about-page .landing-footer { max-width: 1120px; margin: 0 auto; padding: 28px; }
+body.page-light { background: #edf0f7; color: #0b1220; }
+.page-light .landing-footer { max-width: 1120px; margin: 0 auto; padding: 28px; }
 
 /* ============ Light app theme — same brand kit as the homepage ============ */
 body.app-light {
@@ -580,7 +580,7 @@ body.app-light {
   --panel-2: #f2f4f7;
   --border: #e4e9f2;
   --text: #0b1220;
-  --muted: #667085;
+  --muted: #5f6b7a;
   --accent: #c98f3d;
   --accent-soft: #e8c48a;
   --accent-dim: rgba(201, 143, 61, 0.1);
@@ -624,3 +624,36 @@ body.app-light .frame-thumb img { border-color: #e4e9f2; background: #f2f4f7; }
 
 /* tooltip stays a dark chip, with readable text */
 body.app-light .quota-tip { background: #101828; color: #f5f0e8; border-color: #101828; }
+
+/* floating cards + buttons (app) */
+body.app-light .goal-card,
+body.app-light .check {
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.07);
+}
+body.app-light .goal-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px rgba(16, 24, 40, 0.13);
+}
+body.app-light .check:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.11);
+}
+body.app-light .score-card,
+body.app-light .report-section,
+body.app-light .report-head,
+body.app-light .hist-item,
+body.app-light .brief-summary {
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+}
+body.app-light .score-card:hover,
+body.app-light .hist-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(16, 24, 40, 0.1);
+}
+body.app-light .btn {
+  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.08);
+}
+body.app-light .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.14);
+}
