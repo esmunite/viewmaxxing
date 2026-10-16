@@ -416,13 +416,6 @@
   /* ---------------- report render ---------------- */
   function scoreClass(n) { return n >= 75 ? 'score-good' : (n >= 50 ? 'score-mid' : 'score-low'); }
 
-  function bennettTake(avg) {
-    if (avg >= 85) return 'Exceptional. This one is ready — protect what is working and test the hook rewrites below.';
-    if (avg >= 60) return 'Solid foundation. Work the fix list top-down and this climbs fast.';
-    if (avg >= 40) return 'Average right now — which means big upside. Start with fix #1.';
-    return 'Rough cut, honest grade. Work the fix list in order, then re-upload and watch the scores move.';
-  }
-
   function animateScores() {
     var els = document.querySelectorAll('#report-body .val[data-score]');
     els.forEach(function (el) {
@@ -470,48 +463,112 @@
     return h + '</div></div>';
   }
 
+  function chipTimes(str) {
+    return esc(str == null ? '' : str).replace(/(\d{1,3}:\d{2})/g, '<span class="tchip">$1</span>');
+  }
+
+  function dimRing(d) {
+    var pct = Math.max(0, Math.min(10, Number(d.score) || 0)) * 10;
+    var cls = scoreClass(pct);
+    return '<svg class="score-ring" viewBox="0 0 44 44" aria-hidden="true">' +
+      '<circle class="ring-bg" cx="22" cy="22" r="18"/>' +
+      '<circle class="ring-fg ' + cls + '" cx="22" cy="22" r="18" pathLength="100"' +
+      ' stroke-dasharray="100 100" stroke-dashoffset="' + (100 - pct).toFixed(1) + '"/>' +
+      '<text x="22" y="27" text-anchor="middle" class="ring-num">' + d.score + '</text></svg>';
+  }
+
+  function goalScoreLabel() {
+    var g = (lastBrief && lastBrief.goal) || 'virality';
+    return { virality: 'Virality score', conversion: 'Conversion score', growth: 'Growth score', engagement: 'Engagement score' }[g] || 'Overall score';
+  }
+
   function renderReport(rep) {
-    var dims = rep.dimensions || {};
-    var dimNames = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
     var html = '';
     if (rep.visual_analysis_unavailable) {
       var diag = rep.vision_error ? ' <span class="fallback-diag">Error: ' + String(rep.vision_error).replace(/</g, '&lt;') + '</span>' : '';
       html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.' + diag + '</div>';
     }
-    html += '<div class="score-row">' +
-      '<div class="score-card"><div class="num ' + scoreClass(rep.creative_quality) + '"><span class="val" data-score="' + rep.creative_quality + '">0</span><span class="of">/100</span></div><div class="lbl">Creative quality</div></div>' +
-      '<div class="score-card"><div class="num ' + scoreClass(rep.goal_alignment) + '"><span class="val" data-score="' + rep.goal_alignment + '">0</span><span class="of">/100</span></div><div class="lbl">Goal alignment</div></div></div>';
-    html = '<div class="bennett-take"><span class="take-star" aria-hidden="true">✦</span><div><h3>Your video grade</h3><p>' +
-      bennettTake(Math.round(((rep.creative_quality || 0) + (rep.goal_alignment || 0)) / 2)) +
-      '</p></div></div>' + html;
+    html += '<div class="bennett-take"><span class="take-star" aria-hidden="true">\u2726</span><div><h3>Your video grade</h3><p>' +
+      esc(rep.score_band || '') + '</p></div></div>';
+    html += '<div class="score-row single"><div class="score-card hero-score"><div class="num ' + scoreClass(rep.overall_score) +
+      '"><span class="val" data-score="' + rep.overall_score + '">0</span><span class="of">/100</span></div><div class="lbl">' +
+      esc(goalScoreLabel()) + '</div></div></div>';
+    if (rep.video_summary) html += '<p class="rep-summary">' + esc(rep.video_summary) + '</p>';
+    if (rep.objective_statement) html += '<p class="rep-obj">' + esc(rep.objective_statement) + '</p>';
 
     if (!rep.visual_analysis_unavailable && reportFrames && reportFrames.frames && reportFrames.frames.length) {
       html += framesStripHtml(reportFrames);
     }
-    html += '<div class="report-section"><h3>Breakdown</h3>';
-    Object.keys(dimNames).forEach(function (k) {
-      if (dims[k]) html += '<div class="dim"><div class="dim-name">' + dimNames[k] + '</div><div class="dim-note">' + esc(dims[k]) + '</div></div>';
-    });
-    html += '</div>';
 
-    if (rep.fixes && rep.fixes.length) {
-      html += '<div class="report-section"><h3>Fix first</h3><ol>' +
-        rep.fixes.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ol></div>';
+    if (rep.dimensions && rep.dimensions.length) {
+      html += '<div class="report-section"><h3>Breakdown</h3>';
+      rep.dimensions.forEach(function (d) {
+        html += '<div class="dim-card">' +
+          '<div class="dim-head">' + dimRing(d) +
+          '<div class="dim-title"><span class="dim-name">' + esc(d.name) + '</span>' +
+          '<span class="weight-pill">' + d.weight + '% of score</span></div></div>' +
+          (d.evidence ? '<p class="dim-ev"><strong>Seen:</strong> ' + chipTimes(d.evidence) + '</p>' : '') +
+          '<div class="procon">' +
+            (d.pro ? '<div class="pro"><strong>\u2713 Working:</strong> ' + esc(d.pro) + '</div>' : '') +
+            (d.con ? '<div class="con"><strong>\u2717 Hurting:</strong> ' + esc(d.con) + '</div>' : '') +
+          '</div>' +
+          (d.improvement ? '<p class="dim-fix"><strong>Fix:</strong> ' + esc(d.improvement) + '</p>' : '') +
+        '</div>';
+      });
+      html += '</div>';
     }
-    if (rep.strengths && rep.strengths.length) {
-      html += '<div class="report-section"><h3>What\'s working</h3><ul>' +
-        rep.strengths.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul></div>';
+
+    var hk = rep.hook || {};
+    if (hk.verdict || hk.strongest || hk.weakest || hk.alternative) {
+      html += '<div class="report-section"><h3>Hook analysis</h3>' +
+        (hk.verdict ? '<p>' + esc(hk.verdict) + '</p>' : '') +
+        (hk.strongest ? '<p><strong>Strongest moment:</strong> ' + esc(hk.strongest) + '</p>' : '') +
+        (hk.weakest ? '<p><strong>Biggest weakness:</strong> ' + esc(hk.weakest) + '</p>' : '') +
+        (hk.alternative ? '<div class="hook-rw">\u201c' + esc(hk.alternative) + '\u201d</div>' : '') +
+      '</div>';
     }
-    if (rep.timeline_notes && rep.timeline_notes.length) {
-      html += '<div class="report-section"><h3>Timeline notes</h3>' +
-        rep.timeline_notes.map(function (t) {
-          return '<div class="tl"><time>' + esc(t.time || '') + '</time>' + esc(t.note || '') + '</div>';
+
+    if (rep.retention_map && rep.retention_map.length) {
+      html += '<div class="report-section"><h3>Retention map</h3>' +
+        rep.retention_map.map(function (m) {
+          return '<div class="tl"><time>' + esc(m.t || '') + '</time>' + chipTimes(m.note || '') + '</div>';
         }).join('') + '</div>';
     }
-    if (rep.hook_rewrites && rep.hook_rewrites.length) {
-      html += '<div class="report-section"><h3>Hook rewrites to try</h3>' +
-        rep.hook_rewrites.map(function (h) { return '<div class="hook-rw">“' + esc(h) + '”</div>'; }).join('') + '</div>';
+
+    if (rep.psychology && rep.psychology.length) {
+      html += '<div class="report-section"><h3>What\u2019s going on psychologically</h3>' +
+        rep.psychology.map(function (p) {
+          return '<div class="psy"><span class="psy-mark ' + (p.helping ? 'good' : 'bad') + '">' +
+            (p.helping ? '\u2713' : '\u2717') + '</span><div><strong>' + esc(p.principle) +
+            '</strong><p>' + esc(p.explanation) + '</p></div></div>';
+        }).join('') + '</div>';
     }
+
+    if (rep.top_improvements && rep.top_improvements.length) {
+      html += '<div class="report-section"><h3>Top fixes</h3>';
+      rep.top_improvements.forEach(function (t, i) {
+        html += '<div class="fix-card"><div class="fix-num">' + (i + 1) + '</div><div>' +
+          '<strong>' + esc(t.change) + '</strong>' +
+          (t.where ? '<p class="fix-where">' + esc(t.where) + '</p>' : '') +
+          (t.why ? '<p>' + esc(t.why) + '</p>' : '') +
+          (t.example ? '<p class="fix-ex"><strong>Try:</strong> ' + esc(t.example) + '</p>' : '') +
+        '</div></div>';
+      });
+      html += '</div>';
+    }
+
+    if (rep.alt_version) html += '<div class="report-section"><h3>Alternative version</h3><p>' + esc(rep.alt_version) + '</p></div>';
+    if (rep.limitations) html += '<p class="rep-limits">' + esc(rep.limitations) + '</p>';
+
+    var v = rep.verdict || {};
+    if (v.strengths || v.weakness || v.priority) {
+      html += '<div class="report-section verdict"><h3>Final verdict</h3>' +
+        (v.strengths ? '<p><strong>Doing well:</strong> ' + esc(v.strengths) + '</p>' : '') +
+        (v.weakness ? '<p><strong>Biggest weakness:</strong> ' + esc(v.weakness) + '</p>' : '') +
+        (v.priority ? '<p class="verdict-priority"><strong>Do this first:</strong> ' + esc(v.priority) + '</p>' : '') +
+      '</div>';
+    }
+
     $('report-body').innerHTML = html;
     animateScores();
   }
@@ -521,14 +578,25 @@
     var r = lastReport, b = lastBrief || {};
     var md = '# BennettIQ report\n\n' +
       'Goal: ' + (b.goal || '-') + ' | Platforms: ' + (b.platforms || []).join(', ') + '\n\n' +
-      '## Scores\n- Creative quality: ' + r.creative_quality + '/100\n- Goal alignment: ' + r.goal_alignment + '/100\n\n';
-    var dn = { hook: 'Hook', visuals: 'Visuals', pacing: 'Pacing', audio: 'Audio', platform_fit: 'Platform fit', on_screen_text: 'On-screen text' };
-    md += '## Breakdown\n';
-    Object.keys(dn).forEach(function (k) { if (r.dimensions && r.dimensions[k]) md += '### ' + dn[k] + '\n' + r.dimensions[k] + '\n\n'; });
-    if (r.fixes && r.fixes.length) md += '## Fix first\n' + r.fixes.map(function (f, i) { return (i + 1) + '. ' + f; }).join('\n') + '\n\n';
-    if (r.strengths && r.strengths.length) md += '## What\'s working\n' + r.strengths.map(function (f) { return '- ' + f; }).join('\n') + '\n\n';
-    if (r.timeline_notes && r.timeline_notes.length) md += '## Timeline notes\n' + r.timeline_notes.map(function (t) { return '- [' + (t.time || '') + '] ' + (t.note || ''); }).join('\n') + '\n\n';
-    if (r.hook_rewrites && r.hook_rewrites.length) md += '## Hook rewrites to try\n' + r.hook_rewrites.map(function (h) { return '- "' + h + '"'; }).join('\n') + '\n';
+      '## Score\n' + r.overall_score + '/100 — ' + (r.score_band || '') + '\n\n';
+    if (r.video_summary) md += r.video_summary + '\n\n';
+    if (r.objective_statement) md += r.objective_statement + '\n\n';
+    if (r.dimensions && r.dimensions.length) {
+      md += '## Breakdown\n';
+      r.dimensions.forEach(function (d) {
+        md += '### ' + d.name + ' — ' + d.score + '/10 (' + d.weight + '% weight)\n' +
+          '- Seen: ' + d.evidence + '\n- Working: ' + d.pro + '\n- Hurting: ' + d.con + '\n- Fix: ' + d.improvement + '\n\n';
+      });
+    }
+    var hk = r.hook || {};
+    if (hk.verdict) md += '## Hook analysis\n' + hk.verdict + '\n- Strongest: ' + hk.strongest + '\n- Weakest: ' + hk.weakest + '\n- Alternative: "' + hk.alternative + '"\n\n';
+    if (r.retention_map && r.retention_map.length) md += '## Retention map\n' + r.retention_map.map(function (m) { return '- [' + m.t + '] ' + m.note; }).join('\n') + '\n\n';
+    if (r.psychology && r.psychology.length) md += '## Psychology\n' + r.psychology.map(function (p) { return '- ' + (p.helping ? '[+] ' : '[-] ') + p.principle + ': ' + p.explanation; }).join('\n') + '\n\n';
+    if (r.top_improvements && r.top_improvements.length) md += '## Top fixes\n' + r.top_improvements.map(function (t, i) { return (i + 1) + '. ' + t.change + ' (' + t.where + ')\n   Why: ' + t.why + '\n   Try: ' + t.example; }).join('\n') + '\n\n';
+    if (r.alt_version) md += '## Alternative version\n' + r.alt_version + '\n\n';
+    if (r.limitations) md += '## Limitations\n' + r.limitations + '\n\n';
+    var v = r.verdict || {};
+    md += '## Final verdict\n- Doing well: ' + v.strengths + '\n- Biggest weakness: ' + v.weakness + '\n- Do this first: ' + v.priority + '\n';
     var blob = new Blob([md], { type: 'text/markdown' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -551,8 +619,7 @@
         var b = it.brief || {}, rep = it.report || {};
         return '<div class="hist-item" data-idx="' + idx + '"><div class="d">' + esc(d) + '</div>' +
           '<div class="g">' + esc(b.goal || '-') + ' · ' + esc((b.platforms || []).join(', ')) + '</div>' +
-          '<div class="s">Creative ' + (rep.creative_quality != null ? rep.creative_quality : '–') +
-          ' · Alignment ' + (rep.goal_alignment != null ? rep.goal_alignment : '–') + '</div></div>';
+          '<div class="s">Score ' + (rep.overall_score != null ? rep.overall_score : '–') + '/100</div></div>';
       }).join('');
       list.querySelectorAll('.hist-item').forEach(function (el) {
         el.addEventListener('click', function () {
