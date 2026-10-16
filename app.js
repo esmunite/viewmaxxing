@@ -40,6 +40,7 @@
     ['view-landing', 'view-app'].forEach(function (v) { $(v).classList.toggle('hidden', v !== id); });
   }
   function showPane(id) {
+    closeFrameViewer();
     ['pane-brief', 'pane-upload', 'pane-report', 'pane-history'].forEach(function (p) {
       $(p).classList.toggle('hidden', p !== id);
     });
@@ -234,6 +235,12 @@
       if (!r.ok) return;
       var q = await r.json();
       $('quota-pill').textContent = q.remaining + ' of ' + q.limit + ' free grades left today';
+      var tip = $('quota-tip');
+      if (tip) {
+        var now = new Date();
+        var reset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        tip.textContent = 'Resets at ' + reset.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' — back to ' + q.limit + ' free grades';
+      }
     } catch (e) { /* offline */ }
   }
 
@@ -457,7 +464,7 @@
       '<p class="frames-sub">' + n + ' frames reviewed across the full video</p><div class="frames-strip">';
     for (i = 0; i < n; i++) {
       t = dur ? (dur * (i + 0.5) / n) : 0;
-      h += '<div class="frame-thumb"><img src="data:image/jpeg;base64,' + fr[i] +
+      h += '<div class="frame-thumb" data-idx="' + i + '" role="button" tabindex="0" aria-label="View frame ' + (i + 1) + ' larger"><img src="data:image/jpeg;base64,' + fr[i] +
         '" alt="Frame ' + (i + 1) + ' of ' + n + '" loading="lazy"><span>' + fmtTime(t) + '</span></div>';
     }
     return h + '</div></div>';
@@ -477,10 +484,80 @@
       '<text x="22" y="27" text-anchor="middle" class="ring-num">' + d.score + '</text></svg>';
   }
 
+  function openFrameViewer(idx) {
+    if (!reportFrames || !reportFrames.frames || !reportFrames.frames.length) return;
+    var n = reportFrames.frames.length;
+    idx = Math.max(0, Math.min(n - 1, idx || 0));
+    var overlay = $('frame-viewer');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'frame-viewer';
+      overlay.className = 'frame-viewer hidden';
+      overlay.innerHTML = '<div class="fv-backdrop"></div><div class="fv-box">' +
+        '<button class="fv-close" aria-label="Close">✕</button>' +
+        '<button class="fv-prev" aria-label="Previous frame">‹</button>' +
+        '<img class="fv-img" alt="Video frame enlarged">' +
+        '<button class="fv-next" aria-label="Next frame">›</button>' +
+        '<div class="fv-cap"></div></div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('.fv-close').addEventListener('click', closeFrameViewer);
+      overlay.querySelector('.fv-backdrop').addEventListener('click', closeFrameViewer);
+      overlay.querySelector('.fv-prev').addEventListener('click', function (e) { e.stopPropagation(); stepFrame(-1); });
+      overlay.querySelector('.fv-next').addEventListener('click', function (e) { e.stopPropagation(); stepFrame(1); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeFrameViewer(); });
+    }
+    overlay.dataset.idx = idx;
+    renderFrameViewer();
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function renderFrameViewer() {
+    var overlay = $('frame-viewer');
+    if (!overlay || !reportFrames || !reportFrames.frames) return;
+    var fr = reportFrames.frames, n = fr.length;
+    var idx = Math.max(0, Math.min(n - 1, parseInt(overlay.dataset.idx || '0', 10) || 0));
+    var dur = reportFrames.duration || 0;
+    overlay.querySelector('.fv-img').src = 'data:image/jpeg;base64,' + fr[idx];
+    overlay.querySelector('.fv-cap').textContent = 'Frame ' + (idx + 1) + ' of ' + n +
+      (dur ? '  ·  ' + fmtTime(dur * (idx + 0.5) / n) : '');
+  }
+  function stepFrame(d) {
+    var overlay = $('frame-viewer');
+    if (!overlay || !reportFrames || !reportFrames.frames) return;
+    var n = reportFrames.frames.length;
+    var idx = (parseInt(overlay.dataset.idx || '0', 10) + d + n) % n;
+    overlay.dataset.idx = idx;
+    renderFrameViewer();
+  }
+  function closeFrameViewer() {
+    var overlay = $('frame-viewer');
+    if (overlay) overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
   function goalScoreLabel() {
     var g = (lastBrief && lastBrief.goal) || 'virality';
     return { virality: 'Virality score', conversion: 'Conversion score', growth: 'Growth score', engagement: 'Engagement score' }[g] || 'Overall score';
   }
+
+  $('report-body').addEventListener('click', function (e) {
+    var head = e.target.closest('.dim-head');
+    if (head) {
+      var card = head.closest('.dim-card');
+      if (card) {
+        var isOpen = card.classList.toggle('open');
+        head.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      }
+      return;
+    }
+    var th = e.target.closest('.frame-thumb');
+    if (th && th.dataset.idx != null) openFrameViewer(parseInt(th.dataset.idx, 10));
+  });
+  $('report-body').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var th = e.target.closest('.frame-thumb');
+    if (th && th.dataset.idx != null) { e.preventDefault(); openFrameViewer(parseInt(th.dataset.idx, 10)); }
+  });
 
   function renderReport(rep) {
     var html = '';
@@ -501,19 +578,23 @@
     }
 
     if (rep.dimensions && rep.dimensions.length) {
-      html += '<div class="report-section"><h3>Breakdown</h3>';
-      rep.dimensions.forEach(function (d) {
-        html += '<div class="dim-card">' +
-          '<div class="dim-head">' + dimRing(d) +
-          '<div class="dim-title"><span class="dim-name">' + esc(d.name) + '</span>' +
-          '<span class="weight-pill">' + d.weight + '% of score</span></div></div>' +
+      html += '<div class="report-section"><h3>Breakdown</h3><p class="frames-sub">Tap a row to expand the details.</p>';
+      var weakest = 0;
+      rep.dimensions.forEach(function (d, i) { if (Number(d.score) < Number(rep.dimensions[weakest].score)) weakest = i; });
+      rep.dimensions.forEach(function (d, i) {
+        html += '<div class="dim-card' + (i === weakest ? ' open' : '') + '">' +
+          '<button class="dim-head" aria-expanded="' + (i === weakest) + '">' + dimRing(d) +
+          '<span class="dim-title"><span class="dim-name">' + esc(d.name) + '</span>' +
+          '<span class="weight-pill">' + d.weight + '% of score</span></span>' +
+          '<span class="dim-chev" aria-hidden="true">›</span></button>' +
+          '<div class="dim-body">' +
           (d.evidence ? '<p class="dim-ev"><strong>Seen:</strong> ' + chipTimes(d.evidence) + '</p>' : '') +
           '<div class="procon">' +
             (d.pro ? '<div class="pro"><strong>\u2713 Working:</strong> ' + esc(d.pro) + '</div>' : '') +
             (d.con ? '<div class="con"><strong>\u2717 Hurting:</strong> ' + esc(d.con) + '</div>' : '') +
           '</div>' +
           (d.improvement ? '<p class="dim-fix"><strong>Fix:</strong> ' + esc(d.improvement) + '</p>' : '') +
-        '</div>';
+        '</div></div>';
       });
       html += '</div>';
     }
