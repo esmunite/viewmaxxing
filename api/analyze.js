@@ -106,7 +106,7 @@ async function transcribe(audioB64) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.GROQ_API_KEY },
     body: form,
-    signal: AbortSignal.timeout(30000)
+    signal: AbortSignal.timeout(25000)
   });
   if (!r.ok) throw new Error('whisper ' + r.status);
   var j = await r.json();
@@ -114,67 +114,158 @@ async function transcribe(audioB64) {
 }
 
 /* ---------- grading: Gemini (free tier) ---------- */
-function buildPrompt(brief, transcript) {
-  var goalHints = {
-    virality: 'maximize reach and shares',
-    conversion: 'drive sales and leads',
-    growth: 'gain followers',
-    engagement: 'earn comments and saves'
-  };
-  return [
-    'You are a short-form video coach. Grade the attached video frames and transcript.',
-    'CREATOR BRIEF (context the video cannot show):',
-    '- Primary goal: ' + brief.goal + ' (' + (goalHints[brief.goal] || '') + ')',
-    '- Platforms: ' + (brief.platforms || []).join(', '),
+/* ---------- objective rubrics: dimensions, weights, plain-English guidance ---------- */
+var OBJECTIVE_RUBRICS = {
+  virality: {
+    label: 'Virality', goalLine: 'get watched, shared, and rewatched',
+    dimensions: [
+      ['Opening attention & curiosity', 15, 'Do the first 3 seconds give a real reason to keep watching?'],
+      ['Emotional resonance & relatability', 15, 'Does it make the viewer feel something real or see themselves in it?'],
+      ['Retention & narrative progression', 15, 'Does every section earn the next few seconds of attention?'],
+      ['Novelty & distinctiveness', 10, 'Is there an unexpected angle, demo, or combination vs the usual feed?'],
+      ['Shareability', 15, 'Is there a clear reason someone would send this to another person?'],
+      ['Payoff & satisfaction', 10, 'Does the ending deliver what the opening promised?'],
+      ['Rewatchability', 5, 'Loop, reveal, or density that rewards watching twice?'],
+      ['Audience & platform fit', 10, 'Right crowd, right platform conventions?'],
+      ['Clarity & comprehension', 5, 'Can the intended viewer get the premise instantly?']
+    ]
+  },
+  conversion: {
+    label: 'Conversion', goalLine: 'move a relevant viewer to take a defined action',
+    dimensions: [
+      ['Audience & problem fit', 15, 'Are the right viewer and their real problem obvious?'],
+      ['Value proposition & benefits', 15, 'Are outcomes promised clearly, not just features listed?'],
+      ['Demonstration & evidence', 15, 'Is it shown working, with believable proof?'],
+      ['Credibility & trust', 10, 'Are claims specific and believable rather than hype?'],
+      ['Objection handling', 10, 'Are doubts, cost, or risks addressed?'],
+      ['Persuasive sequence', 10, 'Does each beat make the next step feel natural?'],
+      ['Call to action', 15, 'Is there one clear next step that is easy to take?'],
+      ['Clarity & friction reduction', 5, 'No confusion, distractions, or competing messages?'],
+      ['Platform & offer fit', 5, 'Does the offer suit the platform and format?']
+    ]
+  },
+  growth: {
+    label: 'Growth', goalLine: 'earn new followers from the right audience',
+    dimensions: [
+      ['Audience specificity', 10, 'Is it obvious who this is for?'],
+      ['Immediate viewer value', 15, 'Does this video alone deliver something useful, funny, or moving?'],
+      ['Creator differentiation', 10, 'Is there a recognizable voice, angle, or format?'],
+      ['Niche relevance', 15, 'Will it attract people likely to care about future posts?'],
+      ['Repeatable future value', 15, 'Does it imply more good stuff is coming?'],
+      ['Personality & credibility', 10, 'Real point of view, believable creator?'],
+      ['Follow motivation', 15, 'Is there a reason to follow beyond this one video?'],
+      ['Clarity & platform fit', 10, 'Clean execution that fits the platform?']
+    ]
+  },
+  engagement: {
+    label: 'Engagement', goalLine: 'earn comments, saves, shares, and real interaction',
+    dimensions: [
+      ['Emotional resonance', 15, 'Does it make the viewer feel something worth reacting to?'],
+      ['Personal relevance', 10, 'Does it connect to their life, tastes, or problems?'],
+      ['Discussion potential', 15, 'Is there a real question or disagreement worth commenting on?'],
+      ['Participation & prompt quality', 10, 'Is it easy and natural to join in?'],
+      ['Save value', 10, 'Is there information worth revisiting later?'],
+      ['Share value', 10, 'Worth sending to entertain or inform someone?'],
+      ['Community identity', 10, 'Does it make a specific group feel seen?'],
+      ['Authenticity', 10, 'Does the interaction feel natural, not bait?'],
+      ['Clarity & platform fit', 10, 'Is the message clear and suited to the platform?']
+    ]
+  }
+};
+
+var PLATFORM_LENS = {
+  tiktok: 'premise clear in 1 second, feels native rather than adsy, curiosity plus payoff, series potential',
+  instagram: 'polished visuals, save and share value, fits a Reels feed and the creator profile',
+  youtube: 'instant premise, efficient storytelling, replay value; long-form must keep the title and thumbnail promise',
+  facebook: 'broadly relatable, emotional, shareable in feed, works for total strangers',
+  x: 'one sharp point, watchable muted, quotable, gives a reason to repost or reply',
+  snapchat: 'raw and fast, vertical-first, personality over polish',
+  paidads: 'treat as conversion: clarity, proof, and CTA beat platform trends'
+};
+
+function normPlatform(p) {
+  p = (p || '').toLowerCase();
+  if (p.indexOf('instagram') > -1) return 'instagram';
+  if (p.indexOf('youtube') > -1) return 'youtube';
+  if (p.indexOf('tiktok') > -1) return 'tiktok';
+  if (p.indexOf('facebook') > -1) return 'facebook';
+  if (p === 'x') return 'x';
+  if (p.indexOf('snapchat') > -1) return 'snapchat';
+  if (p.indexOf('paid') > -1) return 'paidads';
+  return 'tiktok';
+}
+
+function buildPrompt(brief, transcript, hasFrames) {
+  var goal = (brief.goal || 'virality').toLowerCase();
+  var rubric = OBJECTIVE_RUBRICS[goal] || OBJECTIVE_RUBRICS.virality;
+  var plats = (brief.platforms || []).join(', ') || 'TikTok';
+  var primaryPlat = (brief.platforms || ['TikTok'])[0];
+  var platLens = PLATFORM_LENS[normPlatform(primaryPlat)];
+  var dimLines = rubric.dimensions.map(function (d, i) {
+    return (i + 1) + '. ' + d[0] + ' (weight ' + d[1] + '%) - ' + d[2];
+  }).join('\n');
+  var lines = [
+    'You are an AI video performance strategist. Judge this video ONLY on how well its observable creative choices serve the creator\'s stated goal. Be rigorous, evidence-based, and blunt. Never predict views, virality, sales, or follower counts.',
+    '',
+    'CREATOR BRIEF',
+    '- Goal: ' + rubric.label + ' (' + rubric.goalLine + ')',
+    '- Platform(s): ' + plats,
     brief.viewer ? '- Intended viewer: ' + brief.viewer : '',
     brief.niche ? '- Niche: ' + brief.niche : '',
     brief.offer ? '- Product/offer: ' + brief.offer : '',
-    'TRANSCRIPT:', transcript || '(no speech detected)',
     '',
-    'COACHING FRAMEWORKS - use these by name in your feedback:',
-    'HOOK ARCHETYPES (the first 1-3 seconds decide everything):',
-    '1. Pattern interrupt: something visually or verbally unexpected in second 0-1 that breaks the scroll.',
-    '2. Open loop: start a question or promise a payoff, then delay the answer ("wait for the last rep").',
-    '3. Bold or negative claim: "Stop doing X", "You are wasting your time if...".',
-    '4. Numbered promise: "3 mistakes killing your gains".',
-    '5. Direct question: say the viewer\'s exact pain out loud.',
-    '6. In-medias-res: start mid-action. Zero intro, zero greeting.',
-    '7. Relatable POV: "POV: you just started lifting and...".',
-    'A great hook makes a specific promise to a specific viewer in under 3 seconds. A greeting ("hey guys") is not a hook.',
-    'PACING: cut or change something every 1-3 seconds; no dead air over half a second; front-load the value; end in a way that loops or teases part 2.',
-    'VISUALS: face or action in frame 1; 9:16 filled with no black bars; captions burned in and readable on a phone screen; light on the subject\'s face.',
-    'AUDIO: voice clearly above the music; a hook sound in the first second; trending audio helps reach, original audio builds brand.',
-    'CTA MODELS: direct ("follow for part 2"), value exchange ("comment PLAN and I\'ll send my split"), loop ("watch again to catch it").',
+    'TRANSCRIPT',
+    transcript || '(no speech detected)',
     '',
-    'SCORING RUBRIC (be honest - most videos score 30-60):',
-    '85+: exceptional, would stand out in a competitive feed. 60-84: solid with clear gaps. 40-59: average and forgettable. Below 40: fundamental problems.',
-    'Judge each dimension against what the best creators do, not against effort.',
+    'FRAMES',
+    hasFrames
+      ? '12 video frames are attached in order. Use them for all visual judgments.'
+      : 'No frames were provided. Grade from the transcript and brief only, and say so clearly in limitations and the visuals-related dimension. Never claim you saw visuals.',
     '',
-    'Score honestly on 0-100. Be specific and blunt. Never predict views or virality.',
-    'In "fixes", name the exact framework to apply and give a concrete rewrite or example - never generic advice.',
-    'In "hook_rewrites", write 3 opening lines, each using a DIFFERENT archetype from the list above.',
+    'HOW TO THINK (lenses, not laws)',
+    '- Hook: do the first 1-3 seconds earn attention through clarity, curiosity, or specificity? Loudness is not a hook.',
+    '- Retention: does each section earn the next few seconds? Call out dead air, repetition, and slow payoffs with timestamps.',
+    '- Platform (' + primaryPlat + '): ' + platLens + '.',
+    '- Psychology: only name principles you can tie to something observable - curiosity gap, cognitive fluency, emotional relevance, narrative transportation, payoff vs expectation, social identity, credibility, friction. Never claim brain chemistry was measured.',
+    '- Never invent timestamps, quotes, or visual details. If evidence is missing, say so and score provisionally rather than guessing.',
+    '- One strong feature never hides a critical failure: flag bottlenecks (unclear offer, misleading opening, missing payoff, absent CTA) separately.',
+    '',
+    'VOICE',
+    'Write like a smart college friend explaining it plainly. Short sentences. Zero jargon, zero marketing-speak. Be specific every time - never say "make it more engaging" without saying exactly how.',
+    '',
+    'SCORING - use these dimensions, in order. Score each 0-10 against what the best creators do, not effort. Most real videos land at 3-7 per dimension.',
+    dimLines,
+    '',
+    'overall_score = round(SUM(weight x score / 10)). It must be consistent with your dimension scores.',
+    'Bands: 90-100 exceptional, among the best in a competitive feed for this goal. 80-89 strong, minor polish left. 70-79 promising, meaningful gaps to fix. 60-69 mixed, several fixes would help a lot. 40-59 weak for this goal, substantial rework needed. 0-39 fundamentally misaligned, rethink the concept.',
+    'If the goal is conversion but the video has no identifiable offer or action, say the goal is underspecified instead of failing it.',
+    '',
+    'CONCISENESS',
+    '1-2 sentences per text field. Whole response under ~2500 words. Specific beats long.',
+    '',
     'Respond with ONLY this JSON (no markdown, no extra text):',
     '{',
-    ' "creative_quality": <0-100: hook strength, editing, storytelling, presentation>,',
-    ' "goal_alignment": <0-100: how well the video serves the stated goal, platforms and viewer>,',
-    ' "dimensions": {',
-    '   "hook": "<2 sentences on the first 1-3 seconds>",',
-    '   "visuals": "<framing, lighting, visual variety>",',
-    '   "pacing": "<cuts, dead air, momentum>",',
-    '   "audio": "<clarity, music/sfx, levels>",',
-    '   "platform_fit": "<fit for the chosen platforms>",',
-    '   "on_screen_text": "<captions readability and placement>"',
-    ' },',
-    ' "fixes": ["<most important fix>", "<2nd>", "<3rd>"],',
-    ' "strengths": ["<what is working>"],',
-    ' "timeline_notes": [{"time": "0:03", "note": "<timestamped observation>"}],',
-    ' "hook_rewrites": ["<3 alternative opening lines>"]',
+    ' "overall_score": <0-100>,',
+    ' "score_band": "<short band label, e.g. \'Promising execution with meaningful areas to refine\'>",',
+    ' "video_summary": "<2-3 sentences: what the video is, who it is for, what it wants>",',
+    ' "objective_statement": "<1-2 sentences: what success looks like for this goal on this platform>",',
+    ' "dimensions": [',
+    '   {"name": "<exact dimension name from the list>", "score": <0-10>, "weight": <percent>, "evidence": "<timestamp, quote, or observed detail>", "pro": "<what is working>", "con": "<what is hurting>", "improvement": "<one concrete fix>"}',
+    ' ],',
+    ' "hook": {"verdict": "<1-2 sentences on the opening>", "strongest": "<best opening moment>", "weakest": "<biggest opening weakness>", "alternative": "<one rewritten opening line that keeps the idea>"},',
+    ' "retention_map": [{"t": "0:03", "note": "<what happens here and whether it earns continued watching>"}],',
+    ' "psychology": [{"principle": "<name>", "helping": true, "explanation": "<tie it to an observable choice>"}],',
+    ' "top_improvements": [{"change": "<what to change>", "where": "<where in the video>", "why": "<why it matters for the goal>", "example": "<concrete example>"}],',
+    ' "alt_version": "<one meaningfully different creative approach that keeps the core idea>",',
+    ' "limitations": "<what you could not observe and how it limits confidence>",',
+    ' "verdict": {"strengths": "<what it does well>", "weakness": "<most important weakness>", "priority": "<single highest-priority change>"}',
     '}'
-  ].filter(Boolean).join('\n');
+  ];
+  return lines.filter(Boolean).join('\n');
 }
 
 async function gradeWithGemini(brief, frames, transcript, model) {
-  var parts = [{ text: buildPrompt(brief, transcript) }];
+  var parts = [{ text: buildPrompt(brief, transcript, true) }];
   frames.slice(0, 12).forEach(function (f) {
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: f } });
   });
@@ -182,7 +273,7 @@ async function gradeWithGemini(brief, frames, transcript, model) {
     ':generateContent?key=' + process.env.GEMINI_API_KEY;
   var reqBody = JSON.stringify({
     contents: [{ parts: parts }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 4096 }
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 }
   });
   // Retry transient 503/429 (free-tier demand spikes) with backoff before giving up on this model.
   var waits = [4000], attempt = 0, r, errBody;
@@ -191,7 +282,7 @@ async function gradeWithGemini(brief, frames, transcript, model) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: reqBody,
-      signal: AbortSignal.timeout(20000)
+      signal: AbortSignal.timeout(35000)
     });
     if (r.ok) break;
     errBody = '';
@@ -256,7 +347,7 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
 
 /* ---------- vision grading via OpenRouter free models (OpenAI-compatible) ---------- */
 async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
-  var content = [{ type: 'text', text: buildPrompt(brief, transcript) }];
+  var content = [{ type: 'text', text: buildPrompt(brief, transcript, true) }];
   frames.slice(0, 12).forEach(function (f) {
     content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + f } });
   });
@@ -272,13 +363,13 @@ async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
       model: model,
       response_format: { type: 'json_object' },
       temperature: 0.7,
-      max_tokens: 4000,
+      max_tokens: 6000,
       messages: [
         { role: 'system', content: 'You are a short-form video coach. Respond with ONLY valid JSON, no markdown.' },
         { role: 'user', content: content }
       ]
     }),
-    signal: AbortSignal.timeout(25000)
+    signal: AbortSignal.timeout(35000)
   });
   if (!r.ok) {
     var errBody = '';
@@ -303,10 +394,10 @@ async function gradeWithGroqFallback(brief, transcript, model) {
       model: model,
       response_format: { type: 'json_object' },
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 6000,
       messages: [
         { role: 'system', content: 'You are a short-form video coach. Respond with ONLY valid JSON, no markdown.' },
-        { role: 'user', content: buildPrompt(brief, transcript) + '\nNOTE: no video frames were available; grade from the transcript and brief only, and say so in the visuals dimension.' }
+        { role: 'user', content: buildPrompt(brief, transcript, false) }
       ]
     }),
     signal: AbortSignal.timeout(50000)
@@ -320,16 +411,53 @@ async function gradeWithGroqFallback(brief, transcript, model) {
 
 /* ---------- helpers ---------- */
 function clamp(n) { n = Math.round(Number(n)); return isNaN(n) ? 50 : Math.max(0, Math.min(100, n)); }
+function clamp10(n) { n = Math.round(Number(n)); return isNaN(n) ? 5 : Math.max(0, Math.min(10, n)); }
+function str(x, cap) { x = (x == null ? '' : String(x)); return cap ? x.slice(0, cap) : x; }
+
 function sanitizeReport(r) {
   r = r || {};
+  var dims = Array.isArray(r.dimensions) ? r.dimensions.slice(0, 10).map(function (d) {
+    d = d || {};
+    return {
+      name: str(d.name, 80),
+      score: clamp10(d.score),
+      weight: Math.max(0, parseInt(d.weight, 10) || 0),
+      evidence: str(d.evidence, 500),
+      pro: str(d.pro, 500),
+      con: str(d.con, 500),
+      improvement: str(d.improvement, 500)
+    };
+  }) : [];
+  var hook = r.hook || {};
+  var verdict = r.verdict || {};
   return {
-    creative_quality: clamp(r.creative_quality),
-    goal_alignment: clamp(r.goal_alignment),
-    dimensions: r.dimensions || {},
-    fixes: Array.isArray(r.fixes) ? r.fixes.slice(0, 5) : [],
-    strengths: Array.isArray(r.strengths) ? r.strengths.slice(0, 5) : [],
-    timeline_notes: Array.isArray(r.timeline_notes) ? r.timeline_notes.slice(0, 10) : [],
-    hook_rewrites: Array.isArray(r.hook_rewrites) ? r.hook_rewrites.slice(0, 5) : []
+    overall_score: clamp(r.overall_score),
+    score_band: str(r.score_band, 120),
+    video_summary: str(r.video_summary, 600),
+    objective_statement: str(r.objective_statement, 400),
+    dimensions: dims,
+    hook: {
+      verdict: str(hook.verdict, 500),
+      strongest: str(hook.strongest, 500),
+      weakest: str(hook.weakest, 500),
+      alternative: str(hook.alternative, 500)
+    },
+    retention_map: Array.isArray(r.retention_map) ? r.retention_map.slice(0, 12).map(function (m) {
+      m = m || {}; return { t: str(m.t, 12), note: str(m.note, 400) };
+    }) : [],
+    psychology: Array.isArray(r.psychology) ? r.psychology.slice(0, 6).map(function (p) {
+      p = p || {}; return { principle: str(p.principle, 80), helping: !!p.helping, explanation: str(p.explanation, 400) };
+    }) : [],
+    top_improvements: Array.isArray(r.top_improvements) ? r.top_improvements.slice(0, 3).map(function (t) {
+      t = t || {}; return { change: str(t.change, 400), where: str(t.where, 200), why: str(t.why, 400), example: str(t.example, 400) };
+    }) : [],
+    alt_version: str(r.alt_version, 800),
+    limitations: str(r.limitations, 600),
+    verdict: {
+      strengths: str(verdict.strengths, 600),
+      weakness: str(verdict.weakness, 600),
+      priority: str(verdict.priority, 600)
+    }
   };
 }
 function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
