@@ -356,7 +356,7 @@ async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
-      'HTTP-Referer': 'https://theviewmaxxing.vercel.app',
+      'HTTP-Referer': 'https://bennettiq.vercel.app',
       'X-Title': 'BennettIQ'
     },
     body: JSON.stringify({
