@@ -50,6 +50,7 @@
   }
 
   function render() {
+    document.body.classList.toggle('app-light', !!session);
     if (!session) { show('view-landing'); return; }
     show('view-app');
     showPane('pane-brief');
@@ -565,7 +566,7 @@
       var diag = rep.vision_error ? ' <span class="fallback-diag">Error: ' + String(rep.vision_error).replace(/</g, '&lt;') + '</span>' : '';
       html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.' + diag + '</div>';
     }
-    html += '<div class="bennett-take"><span class="take-star" aria-hidden="true">\u2726</span><div><h3>Your video grade</h3><p>' +
+    html += '<div class="report-head"><span class="take-star" aria-hidden="true">\u2726</span><div><h3>Your video grade</h3><p>' +
       esc(rep.score_band || '') + '</p></div></div>';
     html += '<div class="score-row single"><div class="score-card hero-score"><div class="num ' + scoreClass(rep.overall_score) +
       '"><span class="val" data-score="' + rep.overall_score + '">0</span><span class="of">/100</span></div><div class="lbl">' +

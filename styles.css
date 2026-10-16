@@ -143,14 +143,14 @@ body {
 .loading-star { font-size: 64px; color: #c98f3d; text-align: center; display: block; margin: 48px auto 18px; animation: floaty 3s ease-in-out infinite; }
 #report-loading p { text-align: center; color: var(--muted); }
 
-.bennett-take {
+.report-head {
   display: flex; gap: 18px; align-items: center;
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 20px 22px; margin-bottom: 22px;
 }
 .take-star { font-size: 44px; color: #c98f3d; flex-shrink: 0; line-height: 1; }
-.bennett-take h3 { margin: 0 0 6px; font-size: 17px; }
-.bennett-take p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.report-head h3 { margin: 0 0 6px; font-size: 17px; }
+.report-head p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 
 .score-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
 .score-card {
@@ -208,7 +208,7 @@ body {
   .hero-bennett { width: 150px; }
   .how-strip { flex-direction: column; }
   .goal-grid { grid-template-columns: 1fr 1fr; }
-  .bennett-take { flex-direction: column; text-align: center; }
+  .report-head { flex-direction: column; text-align: center; }
 }
 
 /* ============ Light landing (pre-sign-in) — roveia-style hero ============ */
@@ -567,3 +567,60 @@ button.dim-head { background: none; border: none; padding: 0; width: 100%; curso
   .about-art { order: -1; }
   .about-art img { border-radius: 20px; }
 }
+
+.about-navwrap { max-width: 1120px; margin: 0 auto; padding: 22px 28px 0; }
+.about-navwrap .pill-nav { margin-bottom: 0; }
+body.about-page { background: #edf0f7; color: #0b1220; }
+.about-page .landing-footer { max-width: 1120px; margin: 0 auto; padding: 28px; }
+
+/* ============ Light app theme — same brand kit as the homepage ============ */
+body.app-light {
+  --bg: #edf0f7;
+  --panel: #ffffff;
+  --panel-2: #f2f4f7;
+  --border: #e4e9f2;
+  --text: #0b1220;
+  --muted: #667085;
+  --accent: #c98f3d;
+  --accent-soft: #e8c48a;
+  --accent-dim: rgba(201, 143, 61, 0.1);
+  --warn: #b54708;
+  --bad: #d92d20;
+  background: #edf0f7;
+  color: #0b1220;
+}
+
+/* app header becomes the floating white pill nav */
+body.app-light .app-header {
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 10px 10px 10px 24px;
+  margin-bottom: 26px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.08);
+}
+body.app-light .brand { color: #0b1220; }
+
+/* small accent text needs a deeper bronze on light grounds (4.5:1) */
+body.app-light .tl time,
+body.app-light .file-name,
+body.app-light .hist-item .s,
+body.app-light .quota-pill,
+body.app-light .req { color: #9a5f1f; }
+
+/* score + pro/con greens/reds tuned for light grounds */
+body.app-light .score-good { color: #16a34a; }
+body.app-light .pro { background: rgba(22, 163, 74, .06); border-color: rgba(22, 163, 74, .2); }
+body.app-light .con { background: rgba(217, 45, 32, .05); border-color: rgba(217, 45, 32, .18); }
+body.app-light .pro strong { color: #16a34a; }
+body.app-light .con strong { color: #d92d20; }
+body.app-light .psy-mark.good { background: rgba(22, 163, 74, .12); color: #16a34a; }
+body.app-light .psy-mark.bad { background: rgba(217, 45, 32, .1); color: #d92d20; }
+
+/* rings + chips + thumbs on light */
+body.app-light .ring-bg { stroke: rgba(11, 18, 32, .12); }
+body.app-light .ring-num { fill: #0b1220; }
+body.app-light .tchip { background: rgba(181, 71, 8, .12); color: #b54708; }
+body.app-light .frame-thumb img { border-color: #e4e9f2; background: #f2f4f7; }
+
+/* tooltip stays a dark chip, with readable text */
+body.app-light .quota-tip { background: #101828; color: #f5f0e8; border-color: #101828; }
