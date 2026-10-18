@@ -231,7 +231,7 @@ function buildPrompt(brief, transcript, hasFrames) {
     '- One strong feature never hides a critical failure: flag bottlenecks (unclear offer, misleading opening, missing payoff, absent CTA) separately.',
     '',
     'VOICE',
-    'Write like a smart college friend explaining it plainly. Short sentences. Zero jargon, zero marketing-speak. Be specific every time - never say "make it more engaging" without saying exactly how.',
+    'Write like a smart college friend explaining it plainly. Short sentences. Zero jargon, zero marketing-speak. Never use em-dashes; use commas, periods, or colons instead. Be specific every time - never say "make it more engaging" without saying exactly how.',
     '',
     'SCORING - use these dimensions, in order. Score each 0-10 against what the best creators do, not effort. Most real videos land at 3-7 per dimension.',
     dimLines,
