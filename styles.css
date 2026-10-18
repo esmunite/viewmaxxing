@@ -657,3 +657,14 @@ body.app-light .btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(16, 24, 40, 0.14);
 }
+
+/* how-it-works page: all copy near-black for readability */
+.how-page .doc-wrap,
+.how-page .doc-wrap p,
+.how-page .doc-wrap li,
+.how-page .doc-wrap td,
+.how-page .doc-wrap th { color: #0b1220; }
+
+/* about photo: gentle hover lift */
+.about-art img { transition: transform .35s ease, box-shadow .35s ease; }
+.about-art img:hover { transform: translateY(-8px); box-shadow: 0 34px 70px -20px rgba(11,18,32,.35); }

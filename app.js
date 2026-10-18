@@ -1,4 +1,4 @@
-/* Content Rater — frontend (no build step, plain JS) */
+/* Content Rater frontend: no build step, plain JS */
 (function () {
   'use strict';
 
@@ -107,7 +107,7 @@
           if (r.data && r.data.session) {
             closeAuth(); // confirm-email off: straight in, the auth listener renders the app
           } else {
-            ok.textContent = 'Account created — check your email for a confirmation link, then log in.';
+            ok.textContent = 'Account created. Check your email for a confirmation link, then log in.';
             ok.classList.remove('hidden');
           }
         } else {
@@ -240,7 +240,7 @@
       if (tip) {
         var now = new Date();
         var reset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-        tip.textContent = 'Resets at ' + reset.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' — back to ' + q.limit + ' free grades';
+        tip.textContent = 'Resets at ' + reset.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '. Back to ' + q.limit + ' free grades';
       }
     } catch (e) { /* offline */ }
   }
@@ -660,13 +660,13 @@
     var r = lastReport, b = lastBrief || {};
     var md = '# BennettIQ report\n\n' +
       'Goal: ' + (b.goal || '-') + ' | Platforms: ' + (b.platforms || []).join(', ') + '\n\n' +
-      '## Score\n' + r.overall_score + '/100 — ' + (r.score_band || '') + '\n\n';
+      '## Score\n' + r.overall_score + '/100: ' + (r.score_band || '') + '\n\n';
     if (r.video_summary) md += r.video_summary + '\n\n';
     if (r.objective_statement) md += r.objective_statement + '\n\n';
     if (r.dimensions && r.dimensions.length) {
       md += '## Breakdown\n';
       r.dimensions.forEach(function (d) {
-        md += '### ' + d.name + ' — ' + d.score + '/10 (' + d.weight + '% weight)\n' +
+        md += '### ' + d.name + ': ' + d.score + '/10 (' + d.weight + '% weight)\n' +
           '- Seen: ' + d.evidence + '\n- Working: ' + d.pro + '\n- Hurting: ' + d.con + '\n- Fix: ' + d.improvement + '\n\n';
       });
     }
