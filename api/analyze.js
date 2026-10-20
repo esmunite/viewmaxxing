@@ -240,6 +240,9 @@ function buildPrompt(brief, transcript, hasFrames) {
     'Bands: 90-100 exceptional, among the best in a competitive feed for this goal. 80-89 strong, minor polish left. 70-79 promising, meaningful gaps to fix. 60-69 mixed, several fixes would help a lot. 40-59 weak for this goal, substantial rework needed. 0-39 fundamentally misaligned, rethink the concept.',
     'If the goal is conversion but the video has no identifiable offer or action, say the goal is underspecified instead of failing it.',
     '',
+    'FORMAT COMPARISON',
+    'Identify this video\'s format in a few words (e.g. "30-second recipe tutorial", "talking-head finance tip", "product demo"). Then give 2-3 comparisons against the proven patterns top videos in this exact format use. Patterns only: never name specific videos, creators, view counts, or statistics, and never present a pattern as a real video you watched. For each comparison: pattern = the proven pattern; this_video = what this video does instead, with a timestamp or quote; gap = what the difference costs this goal, naming the dimension it hits.',
+    '',
     'CONCISENESS',
     '1-2 sentences per text field. Whole response under ~2500 words. Specific beats long.',
     '',
@@ -256,6 +259,7 @@ function buildPrompt(brief, transcript, hasFrames) {
     ' "retention_map": [{"t": "0:03", "note": "<what happens here and whether it earns continued watching>"}],',
     ' "psychology": [{"principle": "<name>", "helping": true, "explanation": "<tie it to an observable choice>"}],',
     ' "top_improvements": [{"change": "<what to change>", "where": "<where in the video>", "why": "<why it matters for the goal>", "example": "<concrete example>"}],',
+    ' "format_comparison": {"format": "<the video\'s format in a few words>", "comparisons": [{"pattern": "<what top videos in this format do>", "this_video": "<what this video does instead, with timestamp>", "gap": "<what the difference costs, tied to a dimension>"}]},',
     ' "alt_version": "<one meaningfully different creative approach that keeps the core idea>",',
     ' "limitations": "<what you could not observe and how it limits confidence>",',
     ' "verdict": {"strengths": "<what it does well>", "weakness": "<most important weakness>", "priority": "<single highest-priority change>"}',
@@ -451,6 +455,15 @@ function sanitizeReport(r) {
     top_improvements: Array.isArray(r.top_improvements) ? r.top_improvements.slice(0, 3).map(function (t) {
       t = t || {}; return { change: str(t.change, 400), where: str(t.where, 200), why: str(t.why, 400), example: str(t.example, 400) };
     }) : [],
+    format_comparison: (function () {
+      var fc = r.format_comparison || {};
+      return {
+        format: str(fc.format, 120),
+        comparisons: Array.isArray(fc.comparisons) ? fc.comparisons.slice(0, 3).map(function (c) {
+          c = c || {}; return { pattern: str(c.pattern, 400), this_video: str(c.this_video, 400), gap: str(c.gap, 400) };
+        }) : []
+      };
+    })(),
     alt_version: str(r.alt_version, 800),
     limitations: str(r.limitations, 600),
     verdict: {
