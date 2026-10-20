@@ -133,12 +133,10 @@ var OBJECTIVE_RUBRICS = {
   virality: {
     label: 'Virality', goalLine: 'get watched, shared, and rewatched',
     dimensions: [
-      ['Opening attention & curiosity', 15, 'Do the first 3 seconds give a real reason to keep watching?'],
-      ['Emotional resonance & relatability', 15, 'Does it make the viewer feel something real or see themselves in it?'],
-      ['Retention & narrative progression', 15, 'Does every section earn the next few seconds of attention?'],
-      ['Novelty & distinctiveness', 10, 'Is there an unexpected angle, demo, or combination vs the usual feed?'],
-      ['Shareability', 15, 'Is there a clear reason someone would send this to another person?'],
-      ['Payoff & satisfaction', 10, 'Does the ending deliver what the opening promised?'],
+      ['Opening attention & curiosity', 20, 'Do the first 3 seconds give a real reason to keep watching: curiosity, specificity, or an unexpected angle that makes the familiar feel new?'],
+      ['Emotional resonance & relatability', 20, 'Does it make the viewer feel something real or see themselves in it?'],
+      ['Retention & narrative progression', 20, 'Does every section earn the next few seconds of attention, and does the ending deliver what the opening promised?'],
+      ['Shareability', 20, 'Is there a clear reason someone would send this to another person?'],
       ['Rewatchability', 5, 'Loop, reveal, or density that rewards watching twice?'],
       ['Audience & platform fit', 10, 'Right crowd, right platform conventions?'],
       ['Clarity & comprehension', 5, 'Can the intended viewer get the premise instantly?']
@@ -227,6 +225,7 @@ function buildPrompt(brief, transcript, hasFrames) {
     brief.viewer ? '- Intended viewer: ' + brief.viewer : '',
     brief.niche ? '- Niche: ' + brief.niche : '',
     brief.offer ? '- Product/offer: ' + brief.offer : '',
+    brief.results ? '- Creator-reported results (shared by the creator, not independently verified): ' + brief.results : '',
     '',
     'TRANSCRIPT',
     transcript || '(no speech detected)',
@@ -243,17 +242,26 @@ function buildPrompt(brief, transcript, hasFrames) {
     '- Psychology: only name principles you can tie to something observable - curiosity gap, cognitive fluency, emotional relevance, narrative transportation, payoff vs expectation, social identity, credibility, friction. Never claim brain chemistry was measured.',
     '- Never invent timestamps, quotes, or visual details. If evidence is missing, say so and score provisionally rather than guessing.',
     '- One strong feature never hides a critical failure: flag bottlenecks (unclear offer, misleading opening, missing payoff, absent CTA) separately.',
+    '- Effectiveness beats polish: judge every production choice by whether it helps or obstructs the goal for this audience. Authentic, spontaneous, imperfect, or trend-based content can be the strategy itself, not a flaw.',
+    '- Familiar formats and trends are legitimate creative choices. Judge the execution and the fit, never the mere fact that a format is common.',
     '',
     'VOICE',
     'Write like a smart college friend explaining it plainly. Short sentences. Zero jargon, zero marketing-speak. Never use em-dashes; use commas, periods, or colons instead. Be specific every time - never say "make it more engaging" without saying exactly how.',
     '',
-    'SCORING - use these dimensions, in order. Score each 0-10 against what the best creators do, not effort. Most real videos land at 3-7 per dimension.',
+    'SCORING - use these dimensions, in order. Score each 0-10 with these anchors: 9-10 = as strong as the best content in this feed for this goal; 7-8 = clearly working, minor gaps; 5-6 = functional but ordinary, leaks attention or impact; 3-4 = actively working against the goal; 0-2 = broken or missing. A genuinely strong video earns 7s and 8s; do not cluster scores at 5 out of caution. If the evidence says a dimension works, the number must say so too.',
     dimLines,
     'The dimensions array in your JSON MUST contain exactly ' + rubric.dimensions.length + ' entries, one per dimension above, in the same order. Never stop after the first few. Also fill every other section of the JSON; an empty or shortened report is a failed response.',
     '',
     'overall_score = round(SUM(weight x score / 10)). It must be consistent with your dimension scores.',
     'Bands: 90-100 exceptional, among the best in a competitive feed for this goal. 80-89 strong, minor polish left. 70-79 promising, meaningful gaps to fix. 60-69 mixed, several fixes would help a lot. 40-59 weak for this goal, substantial rework needed. 0-39 fundamentally misaligned, rethink the concept.',
     'If the goal is conversion but the video has no identifiable offer or action, say the goal is underspecified instead of failing it.',
+    '',
+    'CALIBRATION - read before scoring:',
+    '- Judge effectiveness for THIS goal and THIS audience, not resemblance to polished marketing. Basic editing, minimal effects, plain lighting, casual delivery, and unconventional pacing are not weaknesses by themselves; a production flaw only counts when it actually obstructs the goal (speech you cannot understand, text you cannot read, genuine confusion).',
+    '- Weigh every weakness by magnitude and relevance to the goal. A minor issue costs a little, never a lot. Do not deduct for each missing best practice: content can succeed through relatability, humor, timing, emotion, provocation, identity, or a familiar format executed well, and the scores must credit what is working, not only what is missing.',
+    '- Think strengths first: identify what is effective and why it may work on this audience before listing improvements, and keep the fixes to the 2-3 that matter most. Speculation is not evidence; never score down for a weakness you cannot tie to something observable in the frames or transcript.',
+    brief.results ? '- This video has creator-reported results (see brief). Treat demonstrated performance as real evidence that its choices worked for its audience: explain what likely drove the result, do not penalize unconventional choices that demonstrably worked, and still give honest improvements. Never present the creator numbers as verified by you, and never guarantee future results.' : '',
+    '- Any psychology you cite is a plausible mechanism, not a measured outcome. Where a judgment is uncertain, say so in limitations instead of scoring as if it were certain.',
     '',
     'FORMAT COMPARISON',
     'Identify this video\'s format in a few words (e.g. "30-second recipe tutorial", "talking-head finance tip", "product demo"). Then give exactly 2 comparisons against the proven patterns top videos in this exact format use. Patterns only: never name specific videos, creators, view counts, or statistics, and never present a pattern as a real video you watched. For each comparison: pattern = the proven pattern; this_video = what this video does instead, with a timestamp or quote; gap = what the difference costs this goal, naming the dimension it hits.',
@@ -312,7 +320,7 @@ async function gradeWithGemini(t0, brief, frames, transcript, model, fast) {
     j.candidates[0].content.parts && j.candidates[0].content.parts[0] &&
     j.candidates[0].content.parts[0].text;
   if (!text) throw new Error('gemini empty ' + JSON.stringify(j).slice(0, 300));
-  return assertComplete(sanitizeReport(JSON.parse(text)), brief);
+  return assertComplete(sanitizeReport(JSON.parse(text), brief && brief.goal), brief);
 }
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
@@ -404,7 +412,7 @@ async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model) {
   var j = await r.json();
   var text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   if (!text) throw new Error('openrouter empty ' + JSON.stringify(j).slice(0, 300));
-  return assertComplete(sanitizeReport(JSON.parse(text)), brief);
+  return assertComplete(sanitizeReport(JSON.parse(text), brief && brief.goal), brief);
 }
 
 /* ---------- fallback: Groq chat, transcript + brief only ---------- */
@@ -431,7 +439,7 @@ async function gradeWithGroqFallback(t0, brief, transcript, model) {
   var j = await r.json();
   var text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   if (!text) throw new Error('groq empty');
-  return assertComplete(sanitizeReport(JSON.parse(text)), brief);
+  return assertComplete(sanitizeReport(JSON.parse(text), brief && brief.goal), brief);
 }
 
 /* A report missing rubric dimensions is a failed attempt, not a grade: the chain
@@ -449,7 +457,20 @@ function clamp(n) { n = Math.round(Number(n)); return isNaN(n) ? 50 : Math.max(0
 function clamp10(n) { n = Math.round(Number(n)); return isNaN(n) ? 5 : Math.max(0, Math.min(10, n)); }
 function str(x, cap) { x = (x == null ? '' : String(x)); return cap ? x.slice(0, cap) : x; }
 
-function sanitizeReport(r) {
+var SCORE_BANDS = [
+  [90, 'Exceptional, among the best in a competitive feed for this goal'],
+  [80, 'Strong, minor polish left'],
+  [70, 'Promising, meaningful gaps to fix'],
+  [60, 'Mixed, several fixes would help a lot'],
+  [40, 'Weak for this goal, substantial rework needed'],
+  [0, 'Fundamentally misaligned, rethink the concept']
+];
+function bandFor(score) {
+  for (var i = 0; i < SCORE_BANDS.length; i++) if (score >= SCORE_BANDS[i][0]) return SCORE_BANDS[i][1];
+  return SCORE_BANDS[SCORE_BANDS.length - 1][1];
+}
+
+function sanitizeReport(r, goal) {
   r = r || {};
   var dims = Array.isArray(r.dimensions) ? r.dimensions.slice(0, 10).map(function (d) {
     d = d || {};
@@ -465,9 +486,25 @@ function sanitizeReport(r) {
   }) : [];
   var hook = r.hook || {};
   var verdict = r.verdict || {};
+  // Scoring integrity: when the dimensions line up with the goal's rubric,
+  // recompute the overall score from the canonical weights and derive the
+  // band from it, so the headline numbers can never contradict the breakdown.
+  var overall = clamp(r.overall_score);
+  var band = str(r.score_band, 120);
+  var rubric = OBJECTIVE_RUBRICS[String(goal || '').toLowerCase()];
+  if (rubric && dims.length === rubric.dimensions.length) {
+    var wtotal = 0;
+    dims.forEach(function (d, i) {
+      d.name = rubric.dimensions[i][0];
+      d.weight = rubric.dimensions[i][1];
+      wtotal += d.weight * d.score / 10;
+    });
+    overall = Math.round(wtotal);
+    band = bandFor(overall);
+  }
   return {
-    overall_score: clamp(r.overall_score),
-    score_band: str(r.score_band, 120),
+    overall_score: overall,
+    score_band: band,
     video_summary: str(r.video_summary, 600),
     objective_statement: str(r.objective_statement, 400),
     dimensions: dims,
