@@ -180,6 +180,7 @@
     if (e.target.closest('#btn-signout')) { sb.auth.signOut(); }
     if (e.target.closest('#btn-history')) { loadHistory(); }
     if (e.target.closest('#btn-back-main')) { showPane(brief ? 'pane-upload' : 'pane-brief'); }
+    if (e.target.closest('#btn-retry-grade')) { runAnalysis(); }
     if (e.target.closest('#btn-back-brief')) { showPane('pane-brief'); }
     if (e.target.closest('#btn-new')) { resetUpload(); showPane('pane-upload'); }
     if (e.target.closest('#btn-download')) { downloadReport(); }
@@ -390,7 +391,7 @@
   }
 
   /* ---------------- analyze ---------------- */
-  $('btn-analyze').addEventListener('click', async function () {
+  async function runAnalysis() {
     if (!prepared || !brief) return;
     var err = $('upload-error'); err.classList.add('hidden');
     showPane('pane-report');
@@ -414,7 +415,7 @@
         return;
       }
       if (r.status === 504 || data.error === 'analysis_failed' || data.error === 'all_grading_models_failed') {
-        $('report-body').innerHTML = '<div class="report-section"><h3>Grading took too long</h3><p style="color:var(--muted);font-size:14px">The AI services are running slow right now, so this grade timed out. Your free grade was not used. Wait a minute and try again.</p></div>';
+        $('report-body').innerHTML = '<div class="report-section"><h3>Grading took too long</h3><p style="color:var(--muted);font-size:14px">The AI services are running slow right now, so this grade timed out. Your free grade was not used. Wait a minute and try again.</p><button class="btn btn-primary" id="btn-retry-grade" style="margin-top:14px">Try again</button></div>';
         return;
       }
       if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
@@ -427,7 +428,8 @@
       $('report-loading').classList.add('hidden');
       $('report-body').innerHTML = '<div class="report-section"><h3>Something went wrong</h3><p style="color:var(--muted);font-size:14px">' + esc(e.message) + '</p></div>';
     }
-  });
+  }
+  $('btn-analyze').addEventListener('click', runAnalysis);
 
   /* ---------------- report render ---------------- */
   function scoreClass(n) { return n >= 75 ? 'score-good' : (n >= 50 ? 'score-mid' : 'score-low'); }
