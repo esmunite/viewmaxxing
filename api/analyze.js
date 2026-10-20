@@ -1,5 +1,5 @@
 /* POST /api/analyze — grade one video.
-   Body: { brief, frames:[base64 jpeg...], audioB64 (base64 wav), fileName }
+   Body: { brief, frames:[base64 jpeg...], audioB64 (base64 mp3, or wav), audioFormat, fileName }
    Steps: verify Supabase JWT -> check daily quota (3/day UTC) -> Groq Whisper
    transcript -> Gemini vision grading -> fallback chain -> save report -> return.
    No API key ever leaves the server. */
@@ -27,6 +27,7 @@ module.exports = async function handler(req, res) {
 
     var body = req.body || {};
     var brief = body.brief, frames = body.frames || [], audioB64 = body.audioB64;
+    var audioFormat = body.audioFormat === 'mp3' ? 'mp3' : 'wav'; // older clients send no format and mean wav
     if (!brief || !brief.goal || !(brief.platforms || []).length)
       return res.status(400).json({ error: 'brief_required' });
     if (!audioB64) return res.status(400).json({ error: 'audio_required' });
@@ -38,7 +39,7 @@ module.exports = async function handler(req, res) {
     // 1) Transcribe (Groq Whisper, free tier). If it fails or times out, grade from
     //    the frames and brief alone rather than failing the whole request.
     var transcript = '';
-    try { transcript = await transcribe(audioB64); }
+    try { transcript = await transcribe(audioB64, audioFormat); }
     catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
 
     // 2) Grade: Gemini models first (full vision), then Groq chat models (transcript-only)
@@ -109,9 +110,10 @@ async function saveReport(userId, brief, report) {
 }
 
 /* ---------- transcription: Groq Whisper (free tier) ---------- */
-async function transcribe(audioB64) {
+async function transcribe(audioB64, format) {
   var form = new FormData();
-  form.append('file', new Blob([Buffer.from(audioB64, 'base64')], { type: 'audio/wav' }), 'audio.wav');
+  var isMp3 = format === 'mp3';
+  form.append('file', new Blob([Buffer.from(audioB64, 'base64')], { type: isMp3 ? 'audio/mpeg' : 'audio/wav' }), isMp3 ? 'audio.mp3' : 'audio.wav');
   form.append('model', 'whisper-large-v3-turbo');
   form.append('response_format', 'json');
   var r = await fetch(GROQ_WHISPER_URL, {
