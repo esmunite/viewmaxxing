@@ -5,6 +5,12 @@
    No API key ever leaves the server. */
 'use strict';
 
+// Vercel kills this function at 60s. Track elapsed time and bail to faster
+// fallbacks instead of hanging until we get killed (which surfaces as a 504).
+var T0 = Date.now();
+function msLeft() { return 55000 - (Date.now() - T0); } // keep 5s for save + respond
+function canAfford(ms) { return msLeft() > ms + 2000; }
+
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -279,23 +285,17 @@ async function gradeWithGemini(brief, frames, transcript, model) {
     contents: [{ parts: parts }],
     generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 }
   });
-  // Retry transient 503/429 (free-tier demand spikes) with backoff before giving up on this model.
-  var waits = [4000], attempt = 0, r, errBody;
-  while (true) {
-    r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: reqBody,
-      signal: AbortSignal.timeout(35000)
-    });
-    if (r.ok) break;
-    errBody = '';
+  // One attempt per model at 28s; the fallback chain (next model) replaces retries
+  // so a slow model can never eat the whole 60s budget on its own.
+  var r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: reqBody,
+    signal: AbortSignal.timeout(28000)
+  });
+  if (!r.ok) {
+    var errBody = '';
     try { errBody = (await r.text()).slice(0, 300); } catch (e0) {}
-    if ((r.status === 503 || r.status === 429) && attempt < waits.length) {
-      console.error('gemini [' + model + '] transient ' + r.status + ', retrying in ' + waits[attempt] + 'ms');
-      await sleep(waits[attempt++]);
-      continue;
-    }
     throw new Error('gemini ' + r.status + ' ' + errBody);
   }
   var j = await r.json();
@@ -310,13 +310,14 @@ async function gradeWithGemini(brief, frames, transcript, model) {
 async function gradeWithFallbackChain(brief, frames, transcript) {
   var lastErr = null, visionErr = null, i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
+    if (!canAfford(30000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
     try {
       return await gradeWithGemini(brief, frames, transcript, GEMINI_MODELS[i]);
     } catch (e) {
       console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
       lastErr = e;
       visionErr = e;
-      await sleep(1200);
+      await sleep(700);
     }
   }
   // OpenRouter free vision models (needs OPENROUTER_API_KEY in Vercel env). Skipped if unset.
@@ -324,17 +325,19 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
     var orModels = (process.env.OPENROUTER_VISION_MODEL ||
       'nvidia/nemotron-3.5-super-vl:free,thinkingmachines/inkling:free,dots-studio/dots-3-note-preview:free').split(',');
     for (i = 0; i < orModels.length; i++) {
+      if (!canAfford(32000)) { console.error('skipping openrouter [' + orModels[i] + ']: budget low'); break; }
       try {
         return await gradeWithOpenRouterVision(brief, frames, transcript, orModels[i].trim());
       } catch (e3) {
         console.error('openrouter vision failed [' + orModels[i] + ']:', e3 && e3.message);
         lastErr = e3;
         visionErr = e3;
-        await sleep(1200);
+        await sleep(700);
       }
     }
   }
   for (i = 0; i < GROQ_FALLBACK_MODELS.length; i++) {
+    if (msLeft() < 12000) { console.error('skipping groq [' + GROQ_FALLBACK_MODELS[i] + ']: budget low'); break; } // transcript-only fallback is fast (~5-12s typical)
     try {
       report = await gradeWithGroqFallback(brief, transcript, GROQ_FALLBACK_MODELS[i]);
       report.visual_analysis_unavailable = true;
@@ -343,7 +346,7 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
     } catch (e2) {
       console.error('groq fallback failed [' + GROQ_FALLBACK_MODELS[i] + ']:', e2 && e2.message);
       lastErr = e2;
-      await sleep(1200);
+      await sleep(700);
     }
   }
   throw lastErr || new Error('all_grading_models_failed');
@@ -373,7 +376,7 @@ async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
         { role: 'user', content: content }
       ]
     }),
-    signal: AbortSignal.timeout(35000)
+    signal: AbortSignal.timeout(30000)
   });
   if (!r.ok) {
     var errBody = '';
@@ -404,7 +407,7 @@ async function gradeWithGroqFallback(brief, transcript, model) {
         { role: 'user', content: buildPrompt(brief, transcript, false) }
       ]
     }),
-    signal: AbortSignal.timeout(50000)
+    signal: AbortSignal.timeout(25000)
   });
   if (!r.ok) throw new Error('groq ' + r.status);
   var j = await r.json();
