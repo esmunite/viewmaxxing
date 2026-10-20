@@ -413,6 +413,10 @@
         $('report-body').innerHTML = '<div class="report-section"><h3>That video is too large to process</h3><p style="color:var(--muted);font-size:14px">The frames and audio from this clip are bigger than our upload limit. Try a shorter clip (about a minute or less) and it should go through.</p></div>';
         return;
       }
+      if (r.status === 504 || data.error === 'analysis_failed' || data.error === 'all_grading_models_failed') {
+        $('report-body').innerHTML = '<div class="report-section"><h3>Grading took too long</h3><p style="color:var(--muted);font-size:14px">The AI services are running slow right now, so this grade timed out. Your free grade was not used. Wait a minute and try again.</p></div>';
+        return;
+      }
       if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
       lastReport = data.report; lastBrief = brief;
       reportFrames = prepared ? { frames: prepared.frames, duration: prepared.duration } : null;
