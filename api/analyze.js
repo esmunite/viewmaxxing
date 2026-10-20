@@ -35,8 +35,11 @@ module.exports = async function handler(req, res) {
     var used = await getUsage(user.id, day);
     if (used >= MAX_DAILY) return res.status(429).json({ error: 'daily_limit' });
 
-    // 1) Transcribe (Groq Whisper, free tier)
-    var transcript = await transcribe(audioB64);
+    // 1) Transcribe (Groq Whisper, free tier). If it fails or times out, grade from
+    //    the frames and brief alone rather than failing the whole request.
+    var transcript = '';
+    try { transcript = await transcribe(audioB64); }
+    catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
 
     // 2) Grade: Gemini models first (full vision), then Groq chat models (transcript-only)
     var t0 = Date.now();
@@ -251,10 +254,10 @@ function buildPrompt(brief, transcript, hasFrames) {
     'If the goal is conversion but the video has no identifiable offer or action, say the goal is underspecified instead of failing it.',
     '',
     'FORMAT COMPARISON',
-    'Identify this video\'s format in a few words (e.g. "30-second recipe tutorial", "talking-head finance tip", "product demo"). Then give 2-3 comparisons against the proven patterns top videos in this exact format use. Patterns only: never name specific videos, creators, view counts, or statistics, and never present a pattern as a real video you watched. For each comparison: pattern = the proven pattern; this_video = what this video does instead, with a timestamp or quote; gap = what the difference costs this goal, naming the dimension it hits.',
+    'Identify this video\'s format in a few words (e.g. "30-second recipe tutorial", "talking-head finance tip", "product demo"). Then give exactly 2 comparisons against the proven patterns top videos in this exact format use. Patterns only: never name specific videos, creators, view counts, or statistics, and never present a pattern as a real video you watched. For each comparison: pattern = the proven pattern; this_video = what this video does instead, with a timestamp or quote; gap = what the difference costs this goal, naming the dimension it hits.',
     '',
     'CONCISENESS',
-    '1-2 sentences per text field. Whole response under ~2500 words. Specific beats long.',
+    '1-2 sentences per text field. Whole response under ~2500 words. Specific beats long. Psychology: at most 4 entries. Retention map: at most 8 entries.',
     '',
     'Respond with ONLY this JSON (no markdown, no extra text):',
     '{',
@@ -287,11 +290,13 @@ async function gradeWithGemini(t0, brief, frames, transcript, model) {
     ':generateContent?key=' + process.env.GEMINI_API_KEY;
   var reqBody = JSON.stringify({
     contents: [{ parts: parts }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 }
+    // thinkingLevel low for speed; assertComplete() rejects any sparse report it
+    // produces, so sloppiness costs an attempt, never reaches the user.
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000, thinkingConfig: { thinkingLevel: 'low' } }
   });
-  // One attempt per model; timeout is sized to the time actually left so a slow
-  // model can never eat the whole 60s budget on its own.
-  var gemTimeout = Math.max(8000, Math.min(28000, msLeft(t0) - 6000));
+  // One attempt per model; timeout is sized to the time actually left, reserving
+  // ~16s so the transcript-only fallback always gets its own window afterwards.
+  var gemTimeout = Math.max(8000, Math.min(40000, msLeft(t0) - 16000));
   var r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
