@@ -782,3 +782,10 @@ body.app-light .btn:hover {
   .score-meaning { padding: 24px 20px; }
   .demo-score { font-size: 46px; }
 }
+
+/* format comparison (report) */
+.fmt-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; background: var(--panel-2); }
+.fmt-card:last-child { margin-bottom: 0; }
+.fmt-row { font-size: 13.5px; line-height: 1.6; margin: 0 0 8px; }
+.fmt-row:last-of-type { margin-bottom: 0; }
+.fmt-gap { font-size: 13.5px; line-height: 1.6; margin: 8px 0 0; background: rgba(232,163,61,.08); border: 1px solid rgba(232,163,61,.25); border-radius: 10px; padding: 10px 12px; }

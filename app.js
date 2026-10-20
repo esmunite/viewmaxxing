@@ -600,6 +600,20 @@
       html += '</div>';
     }
 
+    var fc = rep.format_comparison || {};
+    if (fc.comparisons && fc.comparisons.length) {
+      html += '<div class="report-section"><h3>How top videos in this format do it</h3>' +
+        (fc.format ? '<p class="frames-sub">Your format: ' + esc(fc.format) + '. Patterns only, no specific videos, because what matters is the gap between your footage and what works.</p>' : '');
+      fc.comparisons.forEach(function (c) {
+        html += '<div class="fmt-card">' +
+          (c.pattern ? '<p class="fmt-row"><strong>Top videos:</strong> ' + esc(c.pattern) + '</p>' : '') +
+          (c.this_video ? '<p class="fmt-row"><strong>Yours:</strong> ' + chipTimes(c.this_video) + '</p>' : '') +
+          (c.gap ? '<p class="fmt-gap"><strong>The gap:</strong> ' + esc(c.gap) + '</p>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
     var hk = rep.hook || {};
     if (hk.verdict || hk.strongest || hk.weakest || hk.alternative) {
       html += '<div class="report-section"><h3>Hook analysis</h3>' +
@@ -675,6 +689,16 @@
     if (r.retention_map && r.retention_map.length) md += '## Retention map\n' + r.retention_map.map(function (m) { return '- [' + m.t + '] ' + m.note; }).join('\n') + '\n\n';
     if (r.psychology && r.psychology.length) md += '## Psychology\n' + r.psychology.map(function (p) { return '- ' + (p.helping ? '[+] ' : '[-] ') + p.principle + ': ' + p.explanation; }).join('\n') + '\n\n';
     if (r.top_improvements && r.top_improvements.length) md += '## Top fixes\n' + r.top_improvements.map(function (t, i) { return (i + 1) + '. ' + t.change + ' (' + t.where + ')\n   Why: ' + t.why + '\n   Try: ' + t.example; }).join('\n') + '\n\n';
+    var fc2 = r.format_comparison || {};
+    if (fc2.comparisons && fc2.comparisons.length) {
+      md += '## How top videos in this format do it\n';
+      if (fc2.format) md += 'Format: ' + fc2.format + '\n\n';
+      fc2.comparisons.forEach(function (c) {
+        md += '- Top videos: ' + c.pattern + '\n  Yours: ' + c.this_video + '\n  The gap: ' + c.gap + '\n';
+      });
+      md += '\n';
+    }
+
     if (r.alt_version) md += '## Alternative version\n' + r.alt_version + '\n\n';
     if (r.limitations) md += '## Limitations\n' + r.limitations + '\n\n';
     var v = r.verdict || {};
