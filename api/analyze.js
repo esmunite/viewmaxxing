@@ -10,14 +10,14 @@
 // The budget is per-request: t0 is captured in the handler and threaded through.
 // A module-level clock goes stale because Vercel reuses warm containers, which made
 // every guard skip every model on repeat visits (fake "timeout" on all videos).
-function msLeft(t0) { return 280000 - (Date.now() - t0); } // keep ~20s for save + respond
+function msLeft(t0) { return 255000 - (Date.now() - t0); } // grading-only budget; transcribe + auth + save sit outside it, total stays under the 300s cap
 function canAfford(t0, ms) { return msLeft(t0) > ms + 2000; }
 
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 var GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash']; // vision grading, tried in order (Google gates 2.5 models to past users only)
-var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile']; // transcript-only, tried in order
+var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']; // transcript-only, tried in order (the old Llama models were shut down for free accounts in Aug 2026; the repeat of 20b is a deliberate last-chance retry)
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
@@ -356,6 +356,12 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
       lastErr = e2;
       await sleep(700);
     }
+  }
+  if (msLeft(t0) > 10000) {
+    try {
+      console.error('salvage attempt: final groq try with remaining budget');
+      return await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[0]);
+    } catch (eS) { lastErr = eS; }
   }
   throw lastErr || new Error('all_grading_models_failed');
 }
