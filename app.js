@@ -180,7 +180,7 @@
     if (e.target.closest('#btn-signout')) { sb.auth.signOut(); }
     if (e.target.closest('#btn-history')) { loadHistory(); }
     if (e.target.closest('#btn-back-main')) { showPane(brief ? 'pane-upload' : 'pane-brief'); }
-    if (e.target.closest('#btn-retry-grade')) { runAnalysis(); }
+    if (e.target.closest('#btn-retry-grade')) { showPane('pane-brief'); }
     if (e.target.closest('#btn-back-brief')) { showPane('pane-brief'); }
     if (e.target.closest('#btn-new')) { resetUpload(); showPane('pane-upload'); }
     if (e.target.closest('#btn-download')) { downloadReport(); }
