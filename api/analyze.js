@@ -5,12 +5,12 @@
    No API key ever leaves the server. */
 'use strict';
 
-// Vercel kills this function at 60s. Track elapsed time and bail to faster
+// Vercel's free plan allows 300s functions (raised from 60s in 2025; this file pinned 60s by config for a long time, which caused most of the timeout errors). Track elapsed time and bail to faster
 // fallbacks instead of hanging until we get killed (which surfaces as a 504).
 // The budget is per-request: t0 is captured in the handler and threaded through.
 // A module-level clock goes stale because Vercel reuses warm containers, which made
 // every guard skip every model on repeat visits (fake "timeout" on all videos).
-function msLeft(t0) { return 55000 - (Date.now() - t0); } // keep 5s for save + respond
+function msLeft(t0) { return 280000 - (Date.now() - t0); } // keep ~20s for save + respond
 function canAfford(t0, ms) { return msLeft(t0) > ms + 2000; }
 
 var MAX_DAILY = 3;
@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
   }
 };
 
-module.exports.config = { maxDuration: 60 };
+module.exports.config = { maxDuration: 300 };
 
 /* ---------- auth ---------- */
 async function getUser(req) {
@@ -118,7 +118,7 @@ async function transcribe(audioB64) {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.GROQ_API_KEY },
     body: form,
-    signal: AbortSignal.timeout(15000)
+    signal: AbortSignal.timeout(30000)
   });
   if (!r.ok) throw new Error('whisper ' + r.status);
   var j = await r.json();
@@ -290,13 +290,11 @@ async function gradeWithGemini(t0, brief, frames, transcript, model) {
     ':generateContent?key=' + process.env.GEMINI_API_KEY;
   var reqBody = JSON.stringify({
     contents: [{ parts: parts }],
-    // thinkingLevel low for speed; assertComplete() rejects any sparse report it
-    // produces, so sloppiness costs an attempt, never reaches the user.
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000, thinkingConfig: { thinkingLevel: 'low' } }
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 }
   });
   // One attempt per model; timeout is sized to the time actually left, reserving
   // ~16s so the transcript-only fallback always gets its own window afterwards.
-  var gemTimeout = Math.max(8000, Math.min(40000, msLeft(t0) - 16000));
+  var gemTimeout = Math.max(15000, Math.min(120000, msLeft(t0) - 45000));
   var r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -320,7 +318,7 @@ async function gradeWithGemini(t0, brief, frames, transcript, model) {
 async function gradeWithFallbackChain(t0, brief, frames, transcript) {
   var lastErr = null, visionErr = null, i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
-    if (i === 0 ? msLeft(t0) < 15000 : !canAfford(t0, 30000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
+    if (i === 0 ? msLeft(t0) < 30000 : !canAfford(t0, 60000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
     try {
       return await gradeWithGemini(t0, brief, frames, transcript, GEMINI_MODELS[i]);
     } catch (e) {
@@ -335,7 +333,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
     var orModels = (process.env.OPENROUTER_VISION_MODEL ||
       'nvidia/nemotron-3.5-super-vl:free,thinkingmachines/inkling:free,dots-studio/dots-3-note-preview:free').split(',');
     for (i = 0; i < orModels.length; i++) {
-      if (i === 0 ? msLeft(t0) < 15000 : !canAfford(t0, 30000)) { console.error('skipping openrouter [' + orModels[i] + ']: budget low'); break; }
+      if (i === 0 ? msLeft(t0) < 30000 : !canAfford(t0, 60000)) { console.error('skipping openrouter [' + orModels[i] + ']: budget low'); break; }
       try {
         return await gradeWithOpenRouterVision(t0, brief, frames, transcript, orModels[i].trim());
       } catch (e3) {
@@ -347,7 +345,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
     }
   }
   for (i = 0; i < GROQ_FALLBACK_MODELS.length; i++) {
-    if (msLeft(t0) < 12000) { console.error('skipping groq [' + GROQ_FALLBACK_MODELS[i] + ']: budget low'); break; } // transcript-only fallback is fast (~5-12s typical)
+    if (msLeft(t0) < 20000) { console.error('skipping groq [' + GROQ_FALLBACK_MODELS[i] + ']: budget low'); break; } // transcript-only fallback is fast (~5-12s typical)
     try {
       report = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[i]);
       report.visual_analysis_unavailable = true;
@@ -386,7 +384,7 @@ async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model) {
         { role: 'user', content: content }
       ]
     }),
-    signal: AbortSignal.timeout(Math.max(8000, Math.min(30000, msLeft(t0) - 6000)))
+    signal: AbortSignal.timeout(Math.max(15000, Math.min(90000, msLeft(t0) - 45000)))
   });
   if (!r.ok) {
     var errBody = '';
@@ -417,7 +415,7 @@ async function gradeWithGroqFallback(t0, brief, transcript, model) {
         { role: 'user', content: buildPrompt(brief, transcript, false) }
       ]
     }),
-    signal: AbortSignal.timeout(Math.max(6000, Math.min(25000, msLeft(t0) - 4000)))
+    signal: AbortSignal.timeout(Math.max(10000, Math.min(60000, msLeft(t0) - 15000)))
   });
   if (!r.ok) throw new Error('groq ' + r.status);
   var j = await r.json();
