@@ -16,7 +16,7 @@ function canAfford(t0, ms) { return msLeft(t0) > ms + 2000; }
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-var GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash']; // vision grading, tried in order (Google gates 2.5 models to past users only)
+var GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash']; // vision grading, tried in order; attempts after the first run in fast mode (low thinking) so a stalled flagship cannot eat the whole budget
 var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']; // transcript-only, tried in order (the old Llama models were shut down for free accounts in Aug 2026; the repeat of 20b is a deliberate last-chance retry)
 
 module.exports = async function handler(req, res) {
@@ -281,20 +281,19 @@ function buildPrompt(brief, transcript, hasFrames) {
   return lines.filter(Boolean).join('\n');
 }
 
-async function gradeWithGemini(t0, brief, frames, transcript, model) {
+async function gradeWithGemini(t0, brief, frames, transcript, model, fast) {
   var parts = [{ text: buildPrompt(brief, transcript, true) }];
   frames.slice(0, 12).forEach(function (f) {
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: f } });
   });
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model +
     ':generateContent?key=' + process.env.GEMINI_API_KEY;
-  var reqBody = JSON.stringify({
-    contents: [{ parts: parts }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 }
-  });
+  var genCfg = { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 };
+  if (fast) genCfg.thinkingConfig = { thinkingLevel: 'low' }; // fallback attempts trade depth for speed; assertComplete still enforces a full report
+  var reqBody = JSON.stringify({ contents: [{ parts: parts }], generationConfig: genCfg });
   // One attempt per model; timeout is sized to the time actually left, reserving
-  // ~16s so the transcript-only fallback always gets its own window afterwards.
-  var gemTimeout = Math.max(15000, Math.min(120000, msLeft(t0) - 45000));
+  // ~45s so the transcript-only fallback always gets its own window afterwards.
+  var gemTimeout = Math.max(15000, Math.min(fast ? 60000 : 90000, msLeft(t0) - 45000));
   var r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -316,15 +315,15 @@ async function gradeWithGemini(t0, brief, frames, transcript, model) {
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
 async function gradeWithFallbackChain(t0, brief, frames, transcript) {
-  var lastErr = null, visionErr = null, i, report;
+  var lastErr = null, visionErrs = [], i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
     if (i === 0 ? msLeft(t0) < 30000 : !canAfford(t0, 60000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
     try {
-      return await gradeWithGemini(t0, brief, frames, transcript, GEMINI_MODELS[i]);
+      return await gradeWithGemini(t0, brief, frames, transcript, GEMINI_MODELS[i], i > 0);
     } catch (e) {
       console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
       lastErr = e;
-      visionErr = e;
+      visionErrs.push(GEMINI_MODELS[i] + ': ' + String((e && e.message) || e).slice(0, 90));
       await sleep(700);
     }
   }
@@ -339,7 +338,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
       } catch (e3) {
         console.error('openrouter vision failed [' + orModels[i] + ']:', e3 && e3.message);
         lastErr = e3;
-        visionErr = e3;
+        visionErrs.push(orModels[i].trim() + ': ' + String((e3 && e3.message) || e3).slice(0, 90));
         await sleep(700);
       }
     }
@@ -349,7 +348,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
     try {
       report = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[i]);
       report.visual_analysis_unavailable = true;
-      if (visionErr) report.vision_error = String(visionErr.message || visionErr).slice(0, 300);
+      if (visionErrs.length) report.vision_error = visionErrs.join(' \u00b7 ').slice(0, 300);
       return report;
     } catch (e2) {
       console.error('groq fallback failed [' + GROQ_FALLBACK_MODELS[i] + ']:', e2 && e2.message);
@@ -360,7 +359,10 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
   if (msLeft(t0) > 10000) {
     try {
       console.error('salvage attempt: final groq try with remaining budget');
-      return await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[0]);
+      var salvaged = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[0]);
+      salvaged.visual_analysis_unavailable = true;
+      if (visionErrs.length) salvaged.vision_error = visionErrs.join(' \u00b7 ').slice(0, 300);
+      return salvaged;
     } catch (eS) { lastErr = eS; }
   }
   throw lastErr || new Error('all_grading_models_failed');
