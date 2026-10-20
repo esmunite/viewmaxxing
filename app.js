@@ -309,7 +309,7 @@
         if (!duration || !isFinite(duration)) { URL.revokeObjectURL(url); reject(new Error('No duration found.')); return; }
         extractFrames(video, duration, onProg).then(function (frames) {
           onProg(70, 'Extracting audio…');
-          return extractAudio(file, Math.min(duration, 90)).then(function (audioB64) {
+          return extractAudio(file, Math.min(duration, 60)).then(function (audioB64) {
             URL.revokeObjectURL(url);
             resolve({ frames: frames, audioB64: audioB64, fileName: file.name, duration: duration });
           });
@@ -330,11 +330,11 @@
         onProg(5 + Math.round(60 * i / N), 'Grabbing frame ' + (i + 1) + ' of ' + N + '…');
         var onSeek = function () {
           video.removeEventListener('seeked', onSeek);
-          var scale = Math.min(1, 640 / video.videoWidth);
+          var scale = Math.min(1, 480 / video.videoWidth);
           canvas.width = Math.round(video.videoWidth * scale);
           canvas.height = Math.round(video.videoHeight * scale);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          frames.push(canvas.toDataURL('image/jpeg', 0.65).split(',')[1]);
+          frames.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
           i++; next();
         };
         video.addEventListener('seeked', onSeek);
@@ -407,6 +407,10 @@
       $('report-loading').classList.add('hidden');
       if (r.status === 429 && data.error === 'daily_limit') {
         $('report-body').innerHTML = '<div class="report-section"><h3>Daily limit reached</h3><p style="color:var(--muted);font-size:14px">You\'ve used your 3 free grades today. Come back tomorrow.</p></div>';
+        return;
+      }
+      if (r.status === 413) {
+        $('report-body').innerHTML = '<div class="report-section"><h3>That video is too large to process</h3><p style="color:var(--muted);font-size:14px">The frames and audio from this clip are bigger than our upload limit. Try a shorter clip (about a minute or less) and it should go through.</p></div>';
         return;
       }
       if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
