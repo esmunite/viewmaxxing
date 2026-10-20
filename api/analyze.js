@@ -244,6 +244,7 @@ function buildPrompt(brief, transcript, hasFrames) {
     '',
     'SCORING - use these dimensions, in order. Score each 0-10 against what the best creators do, not effort. Most real videos land at 3-7 per dimension.',
     dimLines,
+    'The dimensions array in your JSON MUST contain exactly ' + rubric.dimensions.length + ' entries, one per dimension above, in the same order. Never stop after the first few. Also fill every other section of the JSON; an empty or shortened report is a failed response.',
     '',
     'overall_score = round(SUM(weight x score / 10)). It must be consistent with your dimension scores.',
     'Bands: 90-100 exceptional, among the best in a competitive feed for this goal. 80-89 strong, minor polish left. 70-79 promising, meaningful gaps to fix. 60-69 mixed, several fixes would help a lot. 40-59 weak for this goal, substantial rework needed. 0-39 fundamentally misaligned, rethink the concept.',
@@ -286,9 +287,7 @@ async function gradeWithGemini(t0, brief, frames, transcript, model) {
     ':generateContent?key=' + process.env.GEMINI_API_KEY;
   var reqBody = JSON.stringify({
     contents: [{ parts: parts }],
-    // thinkingLevel low: these models think at medium by default, which is slow and
-    // pointless for filling in a structured grading form.
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000, thinkingConfig: { thinkingLevel: 'low' } }
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 6000 }
   });
   // One attempt per model; timeout is sized to the time actually left so a slow
   // model can never eat the whole 60s budget on its own.
@@ -309,7 +308,7 @@ async function gradeWithGemini(t0, brief, frames, transcript, model) {
     j.candidates[0].content.parts && j.candidates[0].content.parts[0] &&
     j.candidates[0].content.parts[0].text;
   if (!text) throw new Error('gemini empty ' + JSON.stringify(j).slice(0, 300));
-  return sanitizeReport(JSON.parse(text));
+  return assertComplete(sanitizeReport(JSON.parse(text)), brief);
 }
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
@@ -392,7 +391,7 @@ async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model) {
   var j = await r.json();
   var text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   if (!text) throw new Error('openrouter empty ' + JSON.stringify(j).slice(0, 300));
-  return sanitizeReport(JSON.parse(text));
+  return assertComplete(sanitizeReport(JSON.parse(text)), brief);
 }
 
 /* ---------- fallback: Groq chat, transcript + brief only ---------- */
@@ -419,7 +418,17 @@ async function gradeWithGroqFallback(t0, brief, transcript, model) {
   var j = await r.json();
   var text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
   if (!text) throw new Error('groq empty');
-  return sanitizeReport(JSON.parse(text));
+  return assertComplete(sanitizeReport(JSON.parse(text)), brief);
+}
+
+/* A report missing rubric dimensions is a failed attempt, not a grade: the chain
+   moves on to the next model instead of showing the user a partial breakdown. */
+function assertComplete(report, brief) {
+  var rubric = OBJECTIVE_RUBRICS[((brief && brief.goal) || 'virality').toLowerCase()] || OBJECTIVE_RUBRICS.virality;
+  var need = rubric.dimensions.length;
+  var got = report.dimensions ? report.dimensions.length : 0;
+  if (got < need) throw new Error('incomplete report: ' + got + ' of ' + need + ' dimensions');
+  return report;
 }
 
 /* ---------- helpers ---------- */
