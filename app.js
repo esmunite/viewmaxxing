@@ -5,7 +5,7 @@
   var sb = null;            // supabase client
   var session = null;
   var brief = null;         // { goal, platforms[], viewer, niche, offer }
-  var prepared = null;      // { frames:[b64...], audioB64, fileName, duration }
+  var prepared = null;      // { frames:[b64...], audioB64, audioFormat, fileName, duration }
   var lastReport = null;    // last rendered report (for download)
   var lastBrief = null;
   var reportFrames = null;  // { frames:[b64...], duration } for the filmstrip (fresh grades only)
@@ -310,9 +310,9 @@
         if (!duration || !isFinite(duration)) { URL.revokeObjectURL(url); reject(new Error('No duration found.')); return; }
         extractFrames(video, duration, onProg).then(function (frames) {
           onProg(70, 'Extracting audio…');
-          return extractAudio(file, Math.min(duration, 60)).then(function (audioB64) {
+          return extractAudio(file, Math.min(duration, 180)).then(function (audio) {
             URL.revokeObjectURL(url);
-            resolve({ frames: frames, audioB64: audioB64, fileName: file.name, duration: duration });
+            resolve({ frames: frames, audioB64: audio.b64, audioFormat: audio.format, fileName: file.name, duration: duration });
           });
         }).catch(function (e) { URL.revokeObjectURL(url); reject(e); });
       };
@@ -345,26 +345,66 @@
     });
   }
 
-  // Decode audio, downmix to 16kHz mono, encode WAV. Caps at maxSec seconds.
+  // Decode audio, downmix to 16kHz mono. With the lamejs encoder loaded, encode
+  // MP3 (about 8x smaller than WAV, so up to 3 minutes fits the upload limit).
+  // Without it, keep the original behavior: WAV capped at 60 seconds. If MP3
+  // encoding ever throws, re-render 60s of WAV so a grade can still go through.
   function extractAudio(file, maxSec) {
     return new Promise(function (resolve, reject) {
+      var useMp3 = typeof lamejs !== 'undefined' && !!lamejs.Mp3Encoder;
+      var cap = useMp3 ? maxSec : Math.min(maxSec, 60);
+      var targetRate = 16000;
+      var decoded = null;
+      function render(secs) {
+        var offline = new OfflineAudioContext(1, Math.ceil(Math.min(decoded.duration, secs) * targetRate), targetRate);
+        var src = offline.createBufferSource(); src.buffer = decoded;
+        src.connect(offline.destination); src.start(0);
+        return offline.startRendering();
+      }
       var reader = new FileReader();
       reader.onload = function () {
         var AC = window.AudioContext || window.webkitAudioContext;
         var ac = new AC();
         ac.decodeAudioData(reader.result).then(function (buf) {
-          var targetRate = 16000;
-          var offline = new OfflineAudioContext(1, Math.ceil(Math.min(buf.duration, maxSec) * targetRate), targetRate);
-          var src = offline.createBufferSource(); src.buffer = buf;
-          src.connect(offline.destination); src.start(0);
-          return offline.startRendering();
+          decoded = buf;
+          return render(cap);
         }).then(function (rendered) {
-          resolve(encodeWAV(rendered));
+          if (!useMp3) { resolve({ b64: encodeWAV(rendered), format: 'wav' }); return; }
+          try { resolve({ b64: encodeMP3(rendered), format: 'mp3' }); }
+          catch (eEnc) {
+            render(60).then(function (r2) { resolve({ b64: encodeWAV(r2), format: 'wav' }); }).catch(reject);
+          }
         }).catch(reject);
       };
       reader.onerror = reject;
       reader.readAsArrayBuffer(file);
     });
+  }
+
+  function encodeMP3(audioBuffer) {
+    var data = audioBuffer.getChannelData(0);
+    var enc = new lamejs.Mp3Encoder(1, audioBuffer.sampleRate, 32);
+    var parts = [];
+    for (var i = 0; i < data.length; i += 1152) {
+      var chunk = data.subarray(i, i + 1152);
+      var i16 = new Int16Array(chunk.length);
+      for (var j = 0; j < chunk.length; j++) {
+        var s = Math.max(-1, Math.min(1, chunk[j]));
+        i16[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      var out = enc.encodeBuffer(i16);
+      if (out.length) parts.push(out);
+    }
+    var tail = enc.flush();
+    if (tail.length) parts.push(tail);
+    var total = 0; parts.forEach(function (p) { total += p.length; });
+    var bytes = new Uint8Array(total), off = 0;
+    parts.forEach(function (p) { bytes.set(p, off); off += p.length; });
+    var bin = '';
+    for (var k = 0; k < bytes.length; k += 8192) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(k, k + 8192));
+    }
+    return btoa(bin);
   }
 
   function encodeWAV(audioBuffer) {
@@ -402,7 +442,7 @@
       var r = await fetch('/api/analyze', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
-        body: JSON.stringify({ brief: brief, frames: prepared.frames, audioB64: prepared.audioB64, fileName: prepared.fileName })
+        body: JSON.stringify({ brief: brief, frames: prepared.frames, audioB64: prepared.audioB64, audioFormat: prepared.audioFormat || 'wav', fileName: prepared.fileName })
       });
       var data = await r.json().catch(function () { return {}; });
       $('report-loading').classList.add('hidden');
