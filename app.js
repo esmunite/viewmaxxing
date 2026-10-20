@@ -209,7 +209,8 @@
       platforms: platforms,
       viewer: $('in-viewer').value.trim(),
       niche: $('in-niche').value.trim(),
-      offer: $('in-offer').value.trim()
+      offer: $('in-offer').value.trim(),
+      results: $('in-results').value.trim()
     };
     renderBriefSummary();
     showPane('pane-upload');
@@ -610,6 +611,68 @@
     if (th && th.dataset.idx != null) { e.preventDefault(); openFrameViewer(parseInt(th.dataset.idx, 10)); }
   });
 
+  // Reports saved before the October 2026 rubric change can still contain
+  // two retired dimensions; hide them so old reports match the current
+  // breakdown. The saved data itself is never modified.
+  var RETIRED_DIMS = ['novelty & distinctiveness', 'payoff & satisfaction'];
+  function visibleDims(rep) {
+    return (rep.dimensions || []).filter(function (d) {
+      return RETIRED_DIMS.indexOf(String(d.name || '').toLowerCase()) === -1;
+    });
+  }
+
+  /* ------- reference videos: curated, verified examples -------
+     Rules for this library: every entry was opened and checked by hand, and
+     its title and creator were confirmed against the platform's own data
+     before it was added. Never add an entry from memory or a guess. An
+     honest empty state beats a fabricated example. */
+  var REFERENCE_VIDEOS = [
+    { platform: 'TikTok', title: 'The “Dreams” skateboard video', creator: 'Nathan Apodaca (@doggface208)', url: 'https://www.tiktok.com/@doggface208/video/6876424174374426374', thumb: '', formats: ['vlog', 'music', 'lifestyle', 'authentic moment', 'day in the life'], goals: ['virality', 'engagement', 'growth'],
+      technique: 'One continuous shot that feels completely unproduced: a man coasting on a skateboard, drinking cranberry juice straight from the bottle, lip-syncing to Fleetwood Mac. No cuts, no pitch, no effects, just a mood the viewer understands instantly.',
+      why: 'It is the clearest proof on the platform that effectiveness is not production value. If your video leans on authenticity, timing, or a feeling rather than polish, this is the reference point.',
+      adapt: 'The transferable pattern: one simple moment, a sound the audience already loves, and a clear feeling delivered in the first two seconds.',
+      avoid: 'Do not copy the surface (the juice, the skateboard, this song). The context made it work: an ordinary guy on a work break, radiating unbothered calm at a moment everyone needed it. The lesson is the feeling, not the props.' }
+  ];
+
+  function matchReferences(rep) {
+    if (!REFERENCE_VIDEOS.length) return [];
+    var fmt = ((rep.format_comparison || {}).format || '').toLowerCase();
+    var plat = brief && brief.platforms && brief.platforms[0] ? brief.platforms[0].toLowerCase() : '';
+    var goal = brief && brief.goal ? brief.goal : '';
+    var scored = REFERENCE_VIDEOS.map(function (v) {
+      var sc = 0;
+      var anchored = false;
+      if (plat && v.platform.toLowerCase() === plat) { sc += 2; anchored = true; }
+      if (goal && v.goals.indexOf(goal) !== -1) { sc += 2; anchored = true; }
+      v.formats.forEach(function (f) { if (fmt && fmt.indexOf(f.toLowerCase()) !== -1) sc += 2; });
+      return { v: v, sc: sc, anchored: anchored };
+    }).filter(function (x) { return x.anchored && x.sc >= 3; });
+    scored.sort(function (a, b) { return b.sc - a.sc; });
+    return scored.slice(0, 3).map(function (x) { return x.v; });
+  }
+
+  function referenceHtml(rep) {
+    var picks = matchReferences(rep);
+    var html = '<div class="report-section"><h3>Learn from real video examples</h3>';
+    if (!picks.length) {
+      return html + '<p class="frames-sub">Reference videos for this format are on the way. This library is hand-picked and verified, so it grows format by format rather than all at once.</p></div>';
+    }
+    html += '<p class="frames-sub">Real videos that use this format well. Study the technique, do not copy the video: what worked for them is a pattern to adapt, not a result anyone can promise you.</p>';
+    picks.forEach(function (v) {
+      html += '<div class="ref-card">' +
+        (v.thumb ? '<a class="ref-thumb" href="' + esc(v.url) + '" target="_blank" rel="noopener"><img src="' + esc(v.thumb) + '" alt="" loading="lazy"></a>' : '') +
+        '<div class="ref-body">' +
+          '<p class="ref-title"><a href="' + esc(v.url) + '" target="_blank" rel="noopener">' + esc(v.title) + '</a></p>' +
+          '<p class="ref-meta">' + esc(v.creator) + ' · ' + esc(v.platform) + '</p>' +
+          (v.technique ? '<p class="fmt-row"><strong>Technique:</strong> ' + esc(v.technique) + '</p>' : '') +
+          (v.why ? '<p class="fmt-row"><strong>Why it is relevant to yours:</strong> ' + esc(v.why) + '</p>' : '') +
+          (v.adapt ? '<p class="fmt-row"><strong>Worth adapting:</strong> ' + esc(v.adapt) + '</p>' : '') +
+          (v.avoid ? '<p class="fmt-row"><strong>Do not copy blindly:</strong> ' + esc(v.avoid) + '</p>' : '') +
+        '</div></div>';
+    });
+    return html + '</div>';
+  }
+
   function renderReport(rep) {
     var html = '';
     if (rep.visual_analysis_unavailable) {
@@ -628,11 +691,12 @@
       html += framesStripHtml(reportFrames);
     }
 
-    if (rep.dimensions && rep.dimensions.length) {
+    var dims = visibleDims(rep);
+    if (dims.length) {
       html += '<div class="report-section"><h3>Breakdown</h3><p class="frames-sub">Tap a row to expand the details.</p>';
       var weakest = 0;
-      rep.dimensions.forEach(function (d, i) { if (Number(d.score) < Number(rep.dimensions[weakest].score)) weakest = i; });
-      rep.dimensions.forEach(function (d, i) {
+      dims.forEach(function (d, i) { if (Number(d.score) < Number(dims[weakest].score)) weakest = i; });
+      dims.forEach(function (d, i) {
         html += '<div class="dim-card' + (i === weakest ? ' open' : '') + '">' +
           '<button class="dim-head" aria-expanded="' + (i === weakest) + '">' + dimRing(d) +
           '<span class="dim-title"><span class="dim-name">' + esc(d.name) + '</span>' +
@@ -663,6 +727,8 @@
       });
       html += '</div>';
     }
+
+    html += referenceHtml(rep);
 
     var hk = rep.hook || {};
     if (hk.verdict || hk.strongest || hk.weakest || hk.alternative) {
@@ -727,9 +793,10 @@
       '## Score\n' + r.overall_score + '/100: ' + (r.score_band || '') + '\n\n';
     if (r.video_summary) md += r.video_summary + '\n\n';
     if (r.objective_statement) md += r.objective_statement + '\n\n';
-    if (r.dimensions && r.dimensions.length) {
+    var mdims = visibleDims(r);
+    if (mdims.length) {
       md += '## Breakdown\n';
-      r.dimensions.forEach(function (d) {
+      mdims.forEach(function (d) {
         md += '### ' + d.name + ': ' + d.score + '/10 (' + d.weight + '% weight)\n' +
           '- Seen: ' + d.evidence + '\n- Working: ' + d.pro + '\n- Hurting: ' + d.con + '\n- Fix: ' + d.improvement + '\n\n';
       });
