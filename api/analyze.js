@@ -7,9 +7,11 @@
 
 // Vercel kills this function at 60s. Track elapsed time and bail to faster
 // fallbacks instead of hanging until we get killed (which surfaces as a 504).
-var T0 = Date.now();
-function msLeft() { return 55000 - (Date.now() - T0); } // keep 5s for save + respond
-function canAfford(ms) { return msLeft() > ms + 2000; }
+// The budget is per-request: t0 is captured in the handler and threaded through.
+// A module-level clock goes stale because Vercel reuses warm containers, which made
+// every guard skip every model on repeat visits (fake "timeout" on all videos).
+function msLeft(t0) { return 55000 - (Date.now() - t0); } // keep 5s for save + respond
+function canAfford(t0, ms) { return msLeft(t0) > ms + 2000; }
 
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
@@ -37,7 +39,8 @@ module.exports = async function handler(req, res) {
     var transcript = await transcribe(audioB64);
 
     // 2) Grade: Gemini models first (full vision), then Groq chat models (transcript-only)
-    var report = await gradeWithFallbackChain(brief, frames, transcript);
+    var t0 = Date.now();
+    var report = await gradeWithFallbackChain(t0, brief, frames, transcript);
 
     // 3) Save + increment quota
     await saveReport(user.id, brief, report);
@@ -274,7 +277,7 @@ function buildPrompt(brief, transcript, hasFrames) {
   return lines.filter(Boolean).join('\n');
 }
 
-async function gradeWithGemini(brief, frames, transcript, model) {
+async function gradeWithGemini(t0, brief, frames, transcript, model) {
   var parts = [{ text: buildPrompt(brief, transcript, true) }];
   frames.slice(0, 12).forEach(function (f) {
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: f } });
@@ -289,7 +292,7 @@ async function gradeWithGemini(brief, frames, transcript, model) {
   });
   // One attempt per model; timeout is sized to the time actually left so a slow
   // model can never eat the whole 60s budget on its own.
-  var gemTimeout = Math.max(8000, Math.min(28000, msLeft() - 6000));
+  var gemTimeout = Math.max(8000, Math.min(28000, msLeft(t0) - 6000));
   var r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -310,12 +313,12 @@ async function gradeWithGemini(brief, frames, transcript, model) {
 }
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
-async function gradeWithFallbackChain(brief, frames, transcript) {
+async function gradeWithFallbackChain(t0, brief, frames, transcript) {
   var lastErr = null, visionErr = null, i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
-    if (i === 0 ? msLeft() < 15000 : !canAfford(30000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
+    if (i === 0 ? msLeft(t0) < 15000 : !canAfford(t0, 30000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
     try {
-      return await gradeWithGemini(brief, frames, transcript, GEMINI_MODELS[i]);
+      return await gradeWithGemini(t0, brief, frames, transcript, GEMINI_MODELS[i]);
     } catch (e) {
       console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
       lastErr = e;
@@ -328,9 +331,9 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
     var orModels = (process.env.OPENROUTER_VISION_MODEL ||
       'nvidia/nemotron-3.5-super-vl:free,thinkingmachines/inkling:free,dots-studio/dots-3-note-preview:free').split(',');
     for (i = 0; i < orModels.length; i++) {
-      if (i === 0 ? msLeft() < 15000 : !canAfford(30000)) { console.error('skipping openrouter [' + orModels[i] + ']: budget low'); break; }
+      if (i === 0 ? msLeft(t0) < 15000 : !canAfford(t0, 30000)) { console.error('skipping openrouter [' + orModels[i] + ']: budget low'); break; }
       try {
-        return await gradeWithOpenRouterVision(brief, frames, transcript, orModels[i].trim());
+        return await gradeWithOpenRouterVision(t0, brief, frames, transcript, orModels[i].trim());
       } catch (e3) {
         console.error('openrouter vision failed [' + orModels[i] + ']:', e3 && e3.message);
         lastErr = e3;
@@ -340,9 +343,9 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
     }
   }
   for (i = 0; i < GROQ_FALLBACK_MODELS.length; i++) {
-    if (msLeft() < 12000) { console.error('skipping groq [' + GROQ_FALLBACK_MODELS[i] + ']: budget low'); break; } // transcript-only fallback is fast (~5-12s typical)
+    if (msLeft(t0) < 12000) { console.error('skipping groq [' + GROQ_FALLBACK_MODELS[i] + ']: budget low'); break; } // transcript-only fallback is fast (~5-12s typical)
     try {
-      report = await gradeWithGroqFallback(brief, transcript, GROQ_FALLBACK_MODELS[i]);
+      report = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[i]);
       report.visual_analysis_unavailable = true;
       if (visionErr) report.vision_error = String(visionErr.message || visionErr).slice(0, 300);
       return report;
@@ -356,7 +359,7 @@ async function gradeWithFallbackChain(brief, frames, transcript) {
 }
 
 /* ---------- vision grading via OpenRouter free models (OpenAI-compatible) ---------- */
-async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
+async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model) {
   var content = [{ type: 'text', text: buildPrompt(brief, transcript, true) }];
   frames.slice(0, 12).forEach(function (f) {
     content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + f } });
@@ -379,7 +382,7 @@ async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
         { role: 'user', content: content }
       ]
     }),
-    signal: AbortSignal.timeout(Math.max(8000, Math.min(30000, msLeft() - 6000)))
+    signal: AbortSignal.timeout(Math.max(8000, Math.min(30000, msLeft(t0) - 6000)))
   });
   if (!r.ok) {
     var errBody = '';
@@ -393,7 +396,7 @@ async function gradeWithOpenRouterVision(brief, frames, transcript, model) {
 }
 
 /* ---------- fallback: Groq chat, transcript + brief only ---------- */
-async function gradeWithGroqFallback(brief, transcript, model) {
+async function gradeWithGroqFallback(t0, brief, transcript, model) {
   var r = await fetch(GROQ_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -410,7 +413,7 @@ async function gradeWithGroqFallback(brief, transcript, model) {
         { role: 'user', content: buildPrompt(brief, transcript, false) }
       ]
     }),
-    signal: AbortSignal.timeout(Math.max(6000, Math.min(25000, msLeft() - 4000)))
+    signal: AbortSignal.timeout(Math.max(6000, Math.min(25000, msLeft(t0) - 4000)))
   });
   if (!r.ok) throw new Error('groq ' + r.status);
   var j = await r.json();
