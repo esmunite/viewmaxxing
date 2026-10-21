@@ -47,6 +47,10 @@ module.exports = async function handler(req, res) {
     var report = await gradeWithFallbackChain(t0, brief, frames, transcript);
 
     // 3) Save + increment quota
+    // Keep one mid-video frame as a thumbnail so the creator can recognize
+    // this video in their history. The frames were sent for grading anyway;
+    // this adds no new data collection, just retention of a single frame.
+    if (frames && frames.length) report.thumbnail = frames[Math.floor(frames.length / 2)];
     await saveReport(user.id, brief, report);
     await setUsage(user.id, day, used + 1);
 
