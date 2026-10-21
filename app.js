@@ -840,9 +840,13 @@
       list.innerHTML = items.map(function (it, idx) {
         var d = new Date(it.created_at).toLocaleString();
         var b = it.brief || {}, rep = it.report || {};
-        return '<div class="hist-item" data-idx="' + idx + '"><div class="d">' + esc(d) + '</div>' +
+        var thumb = rep.thumbnail
+          ? '<img class="hist-thumb" src="data:image/jpeg;base64,' + rep.thumbnail + '" alt="" loading="lazy">'
+          : '<div class="hist-thumb hist-ph">' + (rep.overall_score != null ? rep.overall_score : '–') + '</div>';
+        return '<div class="hist-item" data-idx="' + idx + '">' + thumb +
+          '<div class="hist-main"><div class="d">' + esc(d) + '</div>' +
           '<div class="g">' + esc(b.goal || '-') + ' · ' + esc((b.platforms || []).join(', ')) + '</div>' +
-          '<div class="s">Score ' + (rep.overall_score != null ? rep.overall_score : '–') + '/100</div></div>';
+          '<div class="s">Score ' + (rep.overall_score != null ? rep.overall_score : '–') + '/100</div></div></div>';
       }).join('');
       list.querySelectorAll('.hist-item').forEach(function (el) {
         el.addEventListener('click', function () {
