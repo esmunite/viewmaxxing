@@ -254,6 +254,8 @@ body {
   color: #475467; font-size: 17px; line-height: 1.65;
   max-width: 580px; margin: 0 auto 34px;
 }
+.hero-sub-2 { margin-top: -20px; }
+.hero-how-link { color: #a86f1f; text-decoration: underline; text-underline-offset: 3px; }
 .hero-ctas { display: flex; align-items: center; justify-content: center; gap: 28px; margin-bottom: 64px; flex-wrap: wrap; }
 .btn-lg { padding: 15px 30px; font-size: 16px; }
 .how-link { display: inline-flex; align-items: center; gap: 10px; color: #0b1220; font-weight: 600; font-size: 15px; text-decoration: none; }
