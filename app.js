@@ -181,6 +181,7 @@
     if (e.target.closest('#btn-history')) { loadHistory(); }
     if (e.target.closest('#btn-back-main')) { showPane(brief ? 'pane-upload' : 'pane-brief'); }
     if (e.target.closest('#btn-retry-grade')) { showPane('pane-brief'); }
+    if (e.target.closest('#btn-goto-history')) { loadHistory(); }
     if (e.target.closest('#btn-back-brief')) { showPane('pane-brief'); }
     if (e.target.closest('#btn-new')) { resetUpload(); showPane('pane-upload'); }
     if (e.target.closest('#btn-download')) { downloadReport(); }
@@ -431,7 +432,10 @@
     return btoa(bin);
   }
 
-  /* ---------------- analyze ---------------- */
+  /* ---------------- analyze (async jobs: submit, then poll the ticket) ---------------- */
+  function sleepMs(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function setLoadingText(t) { var el = $('loading-text'); if (el) el.textContent = t; }
+
   async function runAnalysis() {
     if (!prepared || !brief) return;
     var err = $('upload-error'); err.classList.add('hidden');
@@ -439,36 +443,78 @@
     $('report-body').innerHTML = '';
     $('report-actions').classList.add('hidden');
     $('report-loading').classList.remove('hidden');
+    setLoadingText('Sending your video…');
     try {
       var r = await fetch('/api/analyze', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
-        body: JSON.stringify({ brief: brief, frames: prepared.frames, audioB64: prepared.audioB64, audioFormat: prepared.audioFormat || 'wav', fileName: prepared.fileName })
+        body: JSON.stringify({ mode: 'submit', brief: brief, frames: prepared.frames, audioB64: prepared.audioB64, audioFormat: prepared.audioFormat || 'wav', fileName: prepared.fileName })
       });
       var data = await r.json().catch(function () { return {}; });
-      $('report-loading').classList.add('hidden');
       if (r.status === 429 && data.error === 'daily_limit') {
+        $('report-loading').classList.add('hidden');
         $('report-body').innerHTML = '<div class="report-section"><h3>Daily limit reached</h3><p style="color:var(--muted);font-size:14px">You\'ve used your 3 free grades today. Come back tomorrow.</p></div>';
         return;
       }
+      if (r.status === 429 && data.error === 'too_many_requests') {
+        $('report-loading').classList.add('hidden');
+        $('report-body').innerHTML = '<div class="report-section"><h3>Lots of requests right now</h3><p style="color:var(--muted);font-size:14px">Give it a few seconds and try again. Your free grade was not used.</p><button class="btn btn-primary" id="btn-retry-grade" style="margin-top:14px">Try again</button></div>';
+        return;
+      }
       if (r.status === 413) {
+        $('report-loading').classList.add('hidden');
         $('report-body').innerHTML = '<div class="report-section"><h3>That video is too large to process</h3><p style="color:var(--muted);font-size:14px">The frames and audio from this clip are bigger than our upload limit. Try a shorter clip (about a minute or less) and it should go through.</p></div>';
         return;
       }
-      if (r.status === 504 || data.error === 'analysis_failed' || data.error === 'all_grading_models_failed') {
+      if (!r.ok || !data.jobId) throw new Error(data.error || ('Server error ' + r.status));
+
+      var result = await pollJob(data.jobId);
+      $('report-loading').classList.add('hidden');
+      if (result.timeout) {
+        $('report-body').innerHTML = '<div class="report-section"><h3>Still grading</h3><p style="color:var(--muted);font-size:14px">This one is taking longer than usual. The grade keeps running in the background even if you leave, and it will appear in your History when it finishes.</p><button class="btn btn-primary" id="btn-goto-history" style="margin-top:14px">Check History</button></div>';
+        return;
+      }
+      if (result.failed) {
         $('report-body').innerHTML = '<div class="report-section"><h3>Grading took too long</h3><p style="color:var(--muted);font-size:14px">The AI services are running slow right now, so this grade timed out. Your free grade was not used. Wait a minute and try again.</p><button class="btn btn-primary" id="btn-retry-grade" style="margin-top:14px">Try again</button></div>';
         return;
       }
-      if (!r.ok) throw new Error(data.error || ('Server error ' + r.status));
-      lastReport = data.report; lastBrief = brief;
+      lastReport = result.report; lastBrief = brief;
       reportFrames = prepared ? { frames: prepared.frames, duration: prepared.duration } : null;
-      renderReport(data.report);
+      renderReport(result.report);
       $('report-actions').classList.remove('hidden');
       refreshQuota();
     } catch (e) {
       $('report-loading').classList.add('hidden');
       $('report-body').innerHTML = '<div class="report-section"><h3>Something went wrong</h3><p style="color:var(--muted);font-size:14px">' + esc(e.message) + '</p></div>';
     }
+  }
+
+  async function pollJob(jobId) {
+    var started = Date.now();
+    var netFails = 0;
+    while (Date.now() - started < 8 * 60 * 1000) {
+      await sleepMs(4000);
+      var r;
+      try {
+        r = await fetch('/api/analyze?job=' + encodeURIComponent(jobId), { headers: authHeader() });
+      } catch (e) {
+        if (++netFails >= 5) throw e;
+        continue;
+      }
+      var d = await r.json().catch(function () { return {}; });
+      if (r.status === 401) throw new Error('Your session expired. Sign in again to see the result in History.');
+      if (!r.ok) {
+        if (++netFails >= 5) throw new Error(d.error || ('Server error ' + r.status));
+        continue;
+      }
+      netFails = 0;
+      if (d.status === 'done') return { report: d.report, transcript: d.transcript };
+      if (d.status === 'failed') return { failed: true };
+      setLoadingText(d.status === 'queued'
+        ? 'In line… your grade starts in a moment.'
+        : 'BennettIQ is grading your video… this can take a minute or two. It keeps going even if you close this tab, and the finished grade lands in your History.');
+    }
+    return { timeout: true };
   }
   $('btn-analyze').addEventListener('click', runAnalysis);
 
