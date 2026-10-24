@@ -13,6 +13,27 @@
 function msLeft(t0) { return 255000 - (Date.now() - t0); } // grading-only budget; transcribe + auth + save sit outside it, total stays under the 300s cap
 function canAfford(t0, ms) { return msLeft(t0) > ms + 2000; }
 
+/* ---------- rate limiting (best-effort, per container) ----------
+   The 3/day quota only counts SAVED grades, so without this a bad actor could
+   burn shared AI quota on endless failed attempts. These caps count attempts.
+   State is deliberately cross-request (that is what a limiter is); it lives in
+   this container's memory, so it is a strong speed bump, not a global wall.
+   The durable global layer is Vercel Firewall rate limiting (dashboard). */
+var rlHits = new Map(); // key -> [attempt timestamps]
+function rlAllow(key, limit, windowMs) {
+  var now = Date.now();
+  var arr = (rlHits.get(key) || []).filter(function (t) { return now - t < windowMs; });
+  if (arr.length >= limit) { rlHits.set(key, arr); return false; }
+  arr.push(now); rlHits.set(key, arr);
+  if (rlHits.size > 5000) rlHits.clear(); // crude memory guard
+  return true;
+}
+function clientIp(req) {
+  var xf = req.headers['x-forwarded-for'];
+  if (xf) return String(xf).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || 'unknown';
+}
+
 var MAX_DAILY = 3;
 var GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -21,9 +42,13 @@ var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'openai
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+  if (!rlAllow('ip:' + clientIp(req), 30, 10 * 60 * 1000))
+    return res.status(429).json({ error: 'too_many_requests' });
   try {
     var user = await getUser(req);
     if (!user) return res.status(401).json({ error: 'unauthorized' });
+    if (!rlAllow('user:' + user.id, 12, 60 * 60 * 1000))
+      return res.status(429).json({ error: 'too_many_requests' });
 
     var body = req.body || {};
     var brief = body.brief, frames = body.frames || [], audioB64 = body.audioB64;
