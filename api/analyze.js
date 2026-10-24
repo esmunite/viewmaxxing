@@ -292,7 +292,12 @@ async function createJob(userId, brief, frames, audioB64, audioFormat) {
     body: JSON.stringify({ user_id: userId, status: 'queued', brief: brief, frames: frames, audio_b64: audioB64, audio_format: audioFormat }),
     signal: AbortSignal.timeout(15000)
   });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    var errText = '';
+    try { errText = (await r.text()).slice(0, 300); } catch (e) {}
+    console.error('createJob failed:', r.status, errText);
+    return null;
+  }
   var rows = await r.json();
   return rows.length ? rows[0] : null;
 }
