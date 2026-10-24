@@ -1,7 +1,12 @@
-/* POST /api/analyze — grade one video.
-   Body: { brief, frames:[base64 jpeg...], audioB64 (base64 mp3, or wav), audioFormat, fileName }
-   Steps: verify Supabase JWT -> check daily quota (3/day UTC) -> Groq Whisper
-   transcript -> Gemini vision grading -> fallback chain -> save report -> return.
+/* /api/analyze — grade one video.
+   ASYNC (what the app uses): POST { mode:'submit', brief, frames, audioB64,
+   audioFormat } files a ticket in the jobs table and answers 202 with the job
+   id; the grade runs in the background (waitUntil) and the client polls
+   GET /api/analyze?job=<id> for the result. A finished job pings
+   { mode:'work' } (x-job-secret header) so the next ticket in line starts.
+   LEGACY: POST with no mode runs the original synchronous flow (handleSync):
+   verify Supabase JWT -> check daily quota (3/day UTC) -> Groq Whisper
+   transcript -> Gemini vision grading -> fallback chain -> save -> return.
    No API key ever leaves the server. */
 'use strict';
 
@@ -40,8 +45,7 @@ var GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 var GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash']; // vision grading, tried in order; attempts after the first run in fast mode (low thinking) so a stalled flagship cannot eat the whole budget
 var GROQ_FALLBACK_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']; // transcript-only, tried in order (the old Llama models were shut down for free accounts in Aug 2026; the repeat of 20b is a deliberate last-chance retry)
 
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+async function handleSync(req, res) {
   if (!rlAllow('ip:' + clientIp(req), 30, 10 * 60 * 1000))
     return res.status(429).json({ error: 'too_many_requests' });
   try {
@@ -84,8 +88,17 @@ module.exports = async function handler(req, res) {
     console.error('analyze failed:', e && e.message);
     return res.status(500).json({ error: 'analysis_failed' });
   }
-};
+}
 
+/* ---------- router ---------- */
+module.exports = async function handler(req, res) {
+  if (req.method === 'GET') return handleStatus(req, res);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+  var body = req.body || {};
+  if (body.mode === 'submit') return handleSubmit(req, res, body);
+  if (body.mode === 'work') return handleWork(req, res);
+  return handleSync(req, res);
+};
 module.exports.config = { maxDuration: 300 };
 
 /* ---------- auth ---------- */
@@ -136,6 +149,216 @@ async function saveReport(userId, brief, report) {
     body: JSON.stringify({ user_id: userId, brief: brief, report: report }),
     signal: AbortSignal.timeout(10000)
   });
+}
+
+/* ---------- async jobs: tickets in the jobs table ----------
+   The grade itself (transcribe -> grade -> save) is identical to the sync
+   flow; only the delivery changed. A job's payload (frames + audio) is wiped
+   from its row the moment it finishes, so the table never fills with base64. */
+var MAX_CONCURRENT_JOBS = 2; // simultaneous grades; protects the shared free AI quotas
+var bgWaitUntil = null;
+try { bgWaitUntil = require('@vercel/functions').waitUntil; } catch (e) { bgWaitUntil = null; }
+function bg(promise) {
+  if (bgWaitUntil) { try { bgWaitUntil(promise); return; } catch (e) { /* fall through */ } }
+  promise.catch(function () {}); // no waitUntil: run while the container lives; the poll rescue is the guarantee
+}
+
+async function handleSubmit(req, res, body) {
+  if (!rlAllow('ip:' + clientIp(req), 30, 10 * 60 * 1000))
+    return res.status(429).json({ error: 'too_many_requests' });
+  try {
+    var user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+    if (!rlAllow('user:' + user.id, 12, 60 * 60 * 1000))
+      return res.status(429).json({ error: 'too_many_requests' });
+
+    var brief = body.brief, frames = body.frames || [], audioB64 = body.audioB64;
+    var audioFormat = body.audioFormat === 'mp3' ? 'mp3' : 'wav';
+    if (!brief || !brief.goal || !(brief.platforms || []).length)
+      return res.status(400).json({ error: 'brief_required' });
+    if (!audioB64) return res.status(400).json({ error: 'audio_required' });
+
+    // The daily limit counts finished grades PLUS tickets still in line, so
+    // nobody can queue past it. A failed job frees its slot on its own.
+    var day = new Date().toISOString().slice(0, 10);
+    var used = await getUsage(user.id, day);
+    var active = await countActiveJobs(user.id);
+    if (used + active >= MAX_DAILY) return res.status(429).json({ error: 'daily_limit' });
+
+    var job = await createJob(user.id, brief, frames, audioB64, audioFormat);
+    if (!job) return res.status(500).json({ error: 'submit_failed' });
+    bg(processOldest(req)); // background: the response below does not wait for the grade
+    return res.status(202).json({ jobId: job.id, status: job.status });
+  } catch (e) {
+    console.error('submit failed:', e && e.message);
+    return res.status(500).json({ error: 'submit_failed' });
+  }
+}
+
+async function handleStatus(req, res) {
+  try {
+    var user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+    var jobId = (req.query && req.query.job) || '';
+    if (!jobId) return res.status(400).json({ error: 'job_required' });
+    var job = await getJob(jobId);
+    if (!job || job.user_id !== user.id) return res.status(404).json({ error: 'not_found' });
+
+    if (job.status === 'running' && Date.now() - Date.parse(job.updated_at) > 7 * 60 * 1000) {
+      // The worker died mid-grade (function killed). Free the slot and tell the
+      // truth instead of letting the user poll forever.
+      await patchJob(jobId, { status: 'failed', error: 'analysis_failed', frames: null, audio_b64: null });
+      job.status = 'failed'; job.error = 'analysis_failed';
+    } else if (job.status === 'queued' && Date.now() - Date.parse(job.created_at) > 20000) {
+      // Rescue: the background start never happened (or the line jammed).
+      // Process the oldest ticket inline; this poll waits, but no job can stick.
+      await processOldest(req);
+      job = (await getJob(jobId)) || job;
+    }
+
+    var out = { status: job.status };
+    if (job.status === 'done') { out.report = job.report; out.transcript = job.transcript || ''; }
+    if (job.status === 'failed') out.error = job.error || 'analysis_failed';
+    return res.status(200).json(out);
+  } catch (e) {
+    console.error('status failed:', e && e.message);
+    return res.status(500).json({ error: 'status_failed' });
+  }
+}
+
+async function handleWork(req, res) {
+  if (!process.env.JOB_SECRET || req.headers['x-job-secret'] !== process.env.JOB_SECRET)
+    return res.status(401).json({ error: 'unauthorized' });
+  await processOldest(req);
+  return res.status(200).json({ ok: true });
+}
+
+/* ----- job queue mechanics ----- */
+
+async function processOldest(req) {
+  var next = await oldestQueuedJob();
+  if (next) await processJob(next.id, req);
+}
+
+async function processJob(jobId, req) {
+  try {
+    if ((await countRunningJobs()) >= MAX_CONCURRENT_JOBS) return; // line full; a finisher or a poll rescue restarts it
+    var job = await claimJob(jobId);
+    if (!job) return; // another worker took it, or it already finished
+    var frames = job.frames || [];
+    var transcript = '';
+    var report = null;
+    try {
+      try { transcript = await transcribe(job.audio_b64, job.audio_format || 'wav'); }
+      catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
+      report = await gradeWithFallbackChain(Date.now(), job.brief, frames, transcript);
+    } catch (eG) {
+      console.error('job grade failed:', eG && eG.message);
+      await patchJob(jobId, { status: 'failed', error: 'analysis_failed', frames: null, audio_b64: null });
+      return;
+    }
+    if (frames.length) report.thumbnail = frames[Math.floor(frames.length / 2)];
+    await saveReport(job.user_id, job.brief, report);
+    var day = new Date().toISOString().slice(0, 10);
+    await setUsage(job.user_id, day, (await getUsage(job.user_id, day)) + 1);
+    await patchJob(jobId, { status: 'done', report: report, transcript: transcript, error: null, frames: null, audio_b64: null });
+  } catch (e) {
+    console.error('processJob failed:', e && e.message);
+    try { await patchJob(jobId, { status: 'failed', error: 'analysis_failed', frames: null, audio_b64: null }); } catch (e2) {}
+  } finally {
+    kickNext(req); // best effort: wake the next ticket inside a fresh invocation
+  }
+}
+
+function kickNext(req) {
+  try {
+    if (!process.env.JOB_SECRET) return;
+    var host = req && req.headers && req.headers.host;
+    if (!host) return;
+    fetch('https://' + host + '/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-job-secret': process.env.JOB_SECRET },
+      body: JSON.stringify({ mode: 'work' })
+    }).catch(function () {});
+  } catch (e) { /* the poll rescue is the guarantee; this is only an accelerator */ }
+}
+
+/* ----- jobs table (Supabase REST, service role) ----- */
+
+async function createJob(userId, brief, frames, audioB64, audioFormat) {
+  var r = await fetch(process.env.SUPABASE_URL + '/rest/v1/jobs', {
+    method: 'POST',
+    headers: Object.assign(sbHeaders(), { Prefer: 'return=representation' }),
+    body: JSON.stringify({ user_id: userId, status: 'queued', brief: brief, frames: frames, audio_b64: audioB64, audio_format: audioFormat }),
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!r.ok) return null;
+  var rows = await r.json();
+  return rows.length ? rows[0] : null;
+}
+
+async function getJob(jobId) {
+  var r = await fetch(
+    process.env.SUPABASE_URL + '/rest/v1/jobs?id=eq.' + encodeURIComponent(jobId) +
+    '&select=id,user_id,status,report,transcript,error,created_at,updated_at',
+    { headers: sbHeaders(), signal: AbortSignal.timeout(10000) });
+  if (!r.ok) return null;
+  var rows = await r.json();
+  return rows.length ? rows[0] : null;
+}
+
+async function claimJob(jobId) {
+  // Atomic: the status=eq.queued filter means only one worker can win the row.
+  var r = await fetch(
+    process.env.SUPABASE_URL + '/rest/v1/jobs?id=eq.' + encodeURIComponent(jobId) + '&status=eq.queued', {
+      method: 'PATCH',
+      headers: Object.assign(sbHeaders(), { Prefer: 'return=representation' }),
+      body: JSON.stringify({ status: 'running', updated_at: new Date().toISOString() }),
+      signal: AbortSignal.timeout(15000)
+    });
+  if (!r.ok) return null;
+  var rows = await r.json();
+  return rows.length ? rows[0] : null;
+}
+
+async function patchJob(jobId, fields) {
+  var body = Object.assign({}, fields, { updated_at: new Date().toISOString() });
+  await fetch(process.env.SUPABASE_URL + '/rest/v1/jobs?id=eq.' + encodeURIComponent(jobId), {
+    method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10000)
+  });
+}
+
+async function oldestQueuedJob() {
+  var r = await fetch(
+    process.env.SUPABASE_URL + '/rest/v1/jobs?status=eq.queued&order=created_at.asc&limit=1&select=id',
+    { headers: sbHeaders(), signal: AbortSignal.timeout(10000) });
+  if (!r.ok) return null;
+  var rows = await r.json();
+  return rows.length ? rows[0] : null;
+}
+
+async function countRunningJobs() {
+  var r = await fetch(
+    process.env.SUPABASE_URL + '/rest/v1/jobs?status=eq.running&select=id,updated_at',
+    { headers: sbHeaders(), signal: AbortSignal.timeout(10000) });
+  if (!r.ok) return 0;
+  var rows = await r.json();
+  var fresh = Date.now() - 7 * 60 * 1000;
+  return rows.filter(function (j) { return Date.parse(j.updated_at) > fresh; }).length;
+}
+
+async function countActiveJobs(userId) {
+  var r = await fetch(
+    process.env.SUPABASE_URL + '/rest/v1/jobs?user_id=eq.' + encodeURIComponent(userId) +
+    '&status=in.(queued,running)&select=id,status,updated_at',
+    { headers: sbHeaders(), signal: AbortSignal.timeout(10000) });
+  if (!r.ok) return 0;
+  var rows = await r.json();
+  var fresh = Date.now() - 7 * 60 * 1000;
+  return rows.filter(function (j) {
+    return j.status === 'queued' || Date.parse(j.updated_at) > fresh;
+  }).length;
 }
 
 /* ---------- transcription: Groq Whisper (free tier) ---------- */
