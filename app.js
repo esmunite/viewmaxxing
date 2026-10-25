@@ -184,6 +184,7 @@
     if (e.target.closest('#btn-goto-history')) { loadHistory(); }
     if (e.target.closest('#btn-back-brief')) { showPane('pane-brief'); }
     if (e.target.closest('#btn-new')) { resetUpload(); showPane('pane-upload'); }
+    if (e.target.closest('#btn-grade-nav')) { if (brief) { resetUpload(); showPane('pane-upload'); } else { showPane('pane-brief'); } }
     if (e.target.closest('#btn-download')) { downloadReport(); }
   });
 
