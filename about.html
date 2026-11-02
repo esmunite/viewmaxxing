@@ -16,7 +16,7 @@
       <a href="/how.html">How it works</a>
       <a href="/about.html" aria-current="page">About</a>
     </div>
-    <a class="btn btn-dark" href="/">Get Started <span aria-hidden="true">→</span></a>
+    <button class="btn btn-dark" data-auth-open="signup">Get Started <span aria-hidden="true">→</span></button>
   </nav>
 </div>
 
@@ -52,7 +52,7 @@
   <p>Three free grades a day. No credit card required.</p>
 </div>
 
-<div class="page-cta"><a href="/" class="btn btn-dark btn-lg">Grade a video</a></div>
+<div class="page-cta"><button class="btn btn-dark btn-lg" data-auth-open="signup">Get Started</button></div>
 
 <footer class="landing-footer">
   <span>© 2026 BennettIQ</span>
@@ -65,5 +65,117 @@
   <span class="footer-dot" aria-hidden="true">·</span>
   <a href="/about.html">About</a>
 </footer>
+
+<!-- ============ AUTH MODAL ============ -->
+<div id="auth-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Log in or sign up">
+  <div class="modal-card">
+    <button class="modal-close" id="auth-close" aria-label="Close">×</button>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Log in</button>
+      <button class="auth-tab" data-tab="signup">Sign up</button>
+    </div>
+    <button id="btn-google-modal" class="btn btn-google btn-block">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+      Continue with Google
+    </button>
+    <div class="divider"><span>or</span></div>
+    <form id="email-auth-form" novalidate>
+      <input type="email" id="auth-email" placeholder="Email" autocomplete="email" aria-label="Email">
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+      <p id="auth-error" class="error hidden"></p>
+      <p id="auth-success" class="success hidden"></p>
+      <button type="submit" class="btn btn-dark btn-block" id="btn-email-submit">Log in</button>
+    </form>
+    <p class="auth-note" id="auth-note">Welcome back.</p>
+    <p class="auth-consent">By continuing, you agree to our <a href="/terms.html">Terms</a> and <a href="/privacy.html">Privacy Policy</a>.</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  'use strict';
+  var sb = null, booting = null, authMode = 'signup';
+  function $(id) { return document.getElementById(id); }
+  function ensureClient() {
+    if (sb) return Promise.resolve(sb);
+    if (!booting) {
+      booting = fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+        sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        return sb;
+      }).catch(function () { return null; });
+    }
+    return booting;
+  }
+  function setTab(mode) {
+    authMode = mode;
+    document.querySelectorAll('.auth-tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === mode); });
+    $('btn-email-submit').textContent = mode === 'signup' ? 'Create account' : 'Log in';
+    $('auth-note').textContent = mode === 'signup' ? '3 video grades a day \u2013 no credit card required.' : 'Welcome back.';
+    $('auth-error').classList.add('hidden');
+    $('auth-success').classList.add('hidden');
+  }
+  function openAuth(mode) {
+    setTab(mode || 'signup');
+    $('auth-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    ensureClient();
+    setTimeout(function () { var f = $('auth-email'); if (f) f.focus(); }, 60);
+  }
+  function closeAuth() {
+    if (!$('auth-modal')) return;
+    $('auth-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('click', function (e) {
+    var opener = e.target.closest('[data-auth-open]');
+    if (opener) { openAuth(opener.getAttribute('data-auth-open')); return; }
+    if (e.target.closest('#auth-close') || e.target.id === 'auth-modal') { closeAuth(); return; }
+    var tab = e.target.closest('.auth-tab');
+    if (tab) { setTab(tab.getAttribute('data-tab')); return; }
+    if (e.target.closest('#btn-google-modal')) {
+      ensureClient().then(function (c) {
+        if (c) c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/' } });
+      });
+    }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAuth(); });
+  document.addEventListener('submit', function (e) {
+    if (e.target.id !== 'email-auth-form') return;
+    e.preventDefault();
+    (async function () {
+      var c = await ensureClient();
+      var err = $('auth-error'), ok = $('auth-success');
+      err.classList.add('hidden'); ok.classList.add('hidden');
+      if (!c) { err.textContent = 'Could not reach the sign-in service. Try again in a moment.'; err.classList.remove('hidden'); return; }
+      var email = $('auth-email').value.trim();
+      var pw = $('auth-password').value;
+      if (!email || pw.length < 6) {
+        err.textContent = 'Enter your email and a password (6+ characters).';
+        err.classList.remove('hidden');
+        return;
+      }
+      $('btn-email-submit').disabled = true;
+      try {
+        if (authMode === 'signup') {
+          var r = await c.auth.signUp({ email: email, password: pw });
+          if (r.error) throw r.error;
+          if (r.data && r.data.session) { window.location.href = '/'; return; }
+          ok.textContent = 'Account created. Check your email for a confirmation link, then log in.';
+          ok.classList.remove('hidden');
+        } else {
+          var r2 = await c.auth.signInWithPassword({ email: email, password: pw });
+          if (r2.error) throw r2.error;
+          window.location.href = '/';
+        }
+      } catch (e2) {
+        err.textContent = e2.message || 'Something went wrong.';
+        err.classList.remove('hidden');
+      }
+      $('btn-email-submit').disabled = false;
+    })();
+  });
+})();
+</script>
 </body>
 </html>
