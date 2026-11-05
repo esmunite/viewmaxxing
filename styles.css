@@ -828,3 +828,152 @@ body.app-light .btn:hover {
   .ref-card { flex-direction: column; }
   .ref-thumb img { width: 100%; height: auto; max-height: 220px; }
 }
+
+/* ============ Mobile system (Nov 2026) ============
+   Foundations below are desktop-neutral (safe-area insets are 0 on desktop,
+   dvh equals vh without mobile chrome, 44px min-height is under the current
+   button height). Everything layout-changing lives in max-width queries. */
+
+/* iOS Safari: dynamic viewport height so the URL bar cannot stretch pages */
+.view { min-height: 100dvh; }
+.modal-card { max-height: 92dvh; }
+
+/* touch polish: no tap-delay zoom on controls, soft brand tap flash */
+a, button, label, input, textarea { touch-action: manipulation; }
+body { -webkit-tap-highlight-color: rgba(201, 143, 61, 0.14); }
+
+/* belt-and-braces: nothing may ever scroll the page sideways */
+html, body { overflow-x: hidden; overflow-x: clip; }
+
+/* comfortable minimum tap target (desktop buttons already render taller) */
+.btn { min-height: 44px; }
+
+/* home-indicator clearance where bars sit at the bottom of the screen */
+.app-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+.modal { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+
+/* tablets and large phones: nav links stay available, score bands go 3-up */
+@media (max-width: 900px) {
+  .pill-links { display: flex; gap: 18px; }
+  .pill-links a { font-size: 14.5px; }
+  .band-scale { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .demo-hero { flex-wrap: wrap; }
+}
+
+/* phones */
+@media (max-width: 640px) {
+  /* ---- landing shell + nav ---- */
+  .landing-page { padding: 12px 12px 48px; }
+  .pill-nav { flex-wrap: wrap; border-radius: 26px; padding: 10px 10px 12px 18px; row-gap: 6px; }
+  .pill-brand { font-size: 17px; }
+  .pill-nav .btn { padding: 10px 18px; font-size: 14px; white-space: nowrap; margin-left: auto; min-height: 42px; }
+  .pill-links { order: 3; flex: 1 1 100%; justify-content: center; gap: 26px; }
+  .hero-panel { padding: 44px 18px 30px; border-radius: 24px; }
+  .hero-h1 { font-size: clamp(35px, 10.5vw, 44px); }
+  .hero-sub { font-size: 16px; margin-bottom: 26px; }
+  .hero-sub-2 { margin-top: -14px; }
+  .hero-ctas { gap: 14px; margin-bottom: 42px; }
+  .hero-ctas .btn { white-space: nowrap; }
+  .btn-lg { padding: 14px 26px; font-size: 15.5px; }
+  .partner-row { margin-top: 38px; padding-top: 24px; gap: 14px; }
+  .partner-label { font-size: 13px; }
+  .works-logo { width: 46px; height: 46px; border-radius: 13px; }
+
+  /* ---- sample report card ---- */
+  .score-demo { padding: 22px 18px 20px; border-radius: 20px; }
+  .score-demo-title { font-size: 16px; }
+  .score-demo-tag { white-space: nowrap; }
+  .demo-dim-head > span { display: flex; flex-direction: column; gap: 1px; }
+  .demo-dim-head em { margin-left: 0; }
+  .demo-hero { gap: 6px 12px; }
+  .demo-score { font-size: 42px; }
+  .demo-score-max { font-size: 17px; }
+  .demo-ctas { gap: 10px; }
+  .demo-ctas .btn { white-space: nowrap; flex: 1 1 auto; }
+
+  /* ---- homepage sections ---- */
+  .home-section { padding: 48px 14px 4px; }
+  .section-sub { font-size: 16px; margin-bottom: 32px; }
+  .obj-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 36px; }
+  .obj-card { padding: 18px; }
+  .score-meaning { padding: 22px 18px; margin-bottom: 36px; }
+  .band-seg { padding: 9px 4px; }
+  .band-seg strong { font-size: 12.5px; }
+  .band-seg span { font-size: 11px; }
+  .step3, .trust-card { padding: 20px 18px; }
+  .how-strip { gap: 10px; }
+
+  /* ---- app shell ---- */
+  #view-app { padding: 14px 12px 32px; }
+  body.app-light .app-header { border-radius: 24px; padding: 14px 16px; }
+  .brand { font-size: 18px; }
+  .header-right { flex: 1 1 100%; }
+  .header-right .btn { padding: 9px 15px; font-size: 13.5px; min-height: 40px; }
+  .quota-pill { font-size: 12.5px; padding: 6px 12px; }
+  .quota-tip { white-space: normal; width: 210px; }
+  .steps { gap: 6px; margin-bottom: 24px; }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 12px; padding: 10px 2px 12px; }
+  .step span { margin-right: 0; width: 24px; height: 24px; }
+  .pane h2 { font-size: 26px; }
+  .pane-sub { margin-bottom: 22px; font-size: 14.5px; }
+
+  /* ---- brief + upload ---- */
+  .goal-grid { gap: 10px; }
+  .goal-card { padding: 18px 8px; }
+  .goal-card strong { font-size: 16px; }
+  .check { min-height: 44px; display: inline-flex; align-items: center; padding: 10px 18px; }
+  .field input[type="text"], .field textarea, #email-auth-form input { font-size: 16px; }
+  .dropzone { padding: 42px 16px; }
+  body.app-light .dropzone { border-color: #b9c6da; background: #ffffff; }
+  .drop-title { font-size: 16px; }
+  .file-name { word-break: break-all; }
+  .pane .btn-primary { width: 100%; }
+
+  /* ---- report ---- */
+  .report-head { padding: 18px 16px; }
+  .report-section { padding: 18px 16px; }
+  .score-card { padding: 22px 16px; }
+  .score-card .num { font-size: 46px; }
+  .hero-score .num { font-size: 56px; }
+  .frame-thumb img { height: 112px; }
+  .dim-card { padding: 12px; }
+  .report-actions { flex-direction: column; }
+  .report-actions .btn { width: 100%; }
+  .hist-item { padding: 12px; gap: 12px; }
+
+  /* ---- modal + frame viewer ---- */
+  .modal { padding: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .modal-card { padding: 28px 20px 24px; border-radius: 20px; }
+  .modal-close { top: 6px; right: 8px; padding: 10px; font-size: 24px; }
+  .auth-tab { padding: 12px 10px; }
+  .fv-prev { left: 6px; }
+  .fv-next { right: 6px; }
+  .fv-close { top: 6px; right: 6px; width: 44px; height: 44px; }
+  .fv-prev, .fv-next { width: 44px; height: 44px; }
+
+  /* ---- doc + about pages ---- */
+  .doc-wrap { padding: 24px 18px 64px; }
+  .doc-wrap h1 { font-size: 29px; }
+  .doc-wrap h2 { font-size: 20px; margin-top: 30px; }
+  .doc-wrap th, .doc-wrap td { padding: 8px; }
+  .doc-wrap td:first-child { white-space: nowrap; }
+  .about-navwrap { padding: 14px 12px 0; }
+  .about-hero { padding: 30px 18px 36px; gap: 28px; }
+  .about-strip { padding: 22px 18px 8px; gap: 10px; }
+  .about-social { padding: 22px 18px 4px; gap: 10px; }
+  .social-pill { padding: 12px 20px; font-size: 15px; }
+  .page-light .landing-footer { padding: 24px 18px; }
+}
+
+/* smallest phones */
+@media (max-width: 480px) {
+  .about-strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 400px) {
+  .demo-ctas .btn { font-size: 14.5px; padding: 13px 18px; }
+  .demo-score { font-size: 38px; }
+  .hist-thumb { width: 76px; height: 58px; }
+  .quota-wrap { flex: 1 1 100%; }
+  .quota-pill { display: block; text-align: center; }
+  .steps { gap: 4px; }
+}
