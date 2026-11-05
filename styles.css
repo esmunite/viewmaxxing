@@ -1006,11 +1006,11 @@ body.brand-sky .text-link { color: var(--sky-deep); }
 
 /* ---------- sky hero (homepage) ---------- */
 body.brand-sky #view-landing { padding: 0 0 48px; display: block; }
-body.brand-sky .landing-page { max-width: none; padding-top: 24px; }
+body.brand-sky .landing-page { max-width: none; padding: 0; }
 body.brand-sky .sky-hero {
-  background: linear-gradient(180deg, var(--sky) 0%, #6db1e6 45%, var(--sky-pale) 78%, var(--cloud) 100%);
-  border-radius: 36px;
-  padding: 12px 28px 0;
+  background: linear-gradient(180deg, var(--sky) 0%, var(--sky) 34%, #6db1e6 68%, var(--sky-pale) 88%, var(--cloud) 100%);
+  border-radius: 0;
+  padding: 22px 22px 0;
 }
 body.brand-sky .sky-hero .hero-panel { background: transparent; box-shadow: none; border: none; max-width: 1180px; margin: 0 auto; padding-top: 56px; }
 body.brand-sky .hero-h1 { font-weight: 800; color: #fff; font-size: clamp(44px, 6.6vw, 84px); line-height: 1.04; letter-spacing: -0.02em; }
@@ -1020,7 +1020,6 @@ body.brand-sky .hero-sub { color: rgba(255, 255, 255, 0.94); }
 body.brand-sky .hero-sub strong { color: #fff; }
 body.brand-sky .hero-how-link { color: #fff; }
 body.brand-sky .hero-ctas .btn-dark { text-transform: uppercase; letter-spacing: 0.05em; padding: 17px 40px; font-size: 16.5px; border-radius: 14px; box-shadow: 0 16px 34px rgba(238, 69, 38, 0.38); }
-body.brand-sky .partner-label { color: rgba(255, 255, 255, 0.85); }
 
 /* ---------- live grade simulation row ---------- */
 body.brand-sky .lg-head { text-align: center; margin-top: 46px; }
@@ -1074,7 +1073,7 @@ body.brand-sky .doc-wrap table th { background: var(--sky); color: #fff; }
   body.brand-sky .lg-shape { height: 300px; }
 }
 @media (max-width: 640px) {
-  body.brand-sky .sky-hero { padding: 10px 14px 0; border-radius: 26px; }
+  body.brand-sky .sky-hero { padding: 16px 14px 0; border-radius: 0; }
   body.brand-sky .sky-hero .hero-panel { padding-top: 36px; }
   body.brand-sky .hero-h1 { font-size: clamp(40px, 11.5vw, 56px); }
   body.brand-sky .lg-head { margin-top: 36px; }
@@ -1090,3 +1089,9 @@ body.brand-sky .doc-wrap table th { background: var(--sky); color: #fff; }
 
 /* Brand Sky fix: the landing view itself carries the old blue-gray ground; repaint it cloudy. */
 body.brand-sky #view-landing { background: var(--cloud); }
+
+/* Brand Sky fix 2: the Works with row sits on the cloudy ground between the sky and the Sample report. */
+body.brand-sky .landing-page > .partner-row { max-width: 1160px; margin: 0 auto; padding: 28px 24px 0; }
+@media (max-width: 640px) {
+  body.brand-sky .landing-page > .partner-row { padding: 24px 16px 0; }
+}
