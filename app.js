@@ -252,7 +252,10 @@
   /* ---------------- video prep (browser-side) ---------------- */
   var dropzone = $('dropzone'), fileInput = $('file-input');
 
-  dropzone.addEventListener('click', function () { fileInput.click(); });
+  // No click handler here on purpose: the dropzone is a <label> around the
+  // input, so a tap already opens the picker on its own. Calling
+  // fileInput.click() as well double-activates it, which can break the
+  // picker flow on iPhone Safari.
   ['dragover', 'dragenter'].forEach(function (ev) {
     dropzone.addEventListener(ev, function (e) { e.preventDefault(); dropzone.classList.add('drag'); });
   });
@@ -263,7 +266,10 @@
     if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
   });
   fileInput.addEventListener('change', function () {
-    if (fileInput.files.length) handleFile(fileInput.files[0]);
+    if (!fileInput.files.length) return;
+    var picked = fileInput.files[0];
+    fileInput.value = ''; // so picking the same video again always re-fires change
+    handleFile(picked);
   });
 
   function setProgress(pct, text) {
@@ -277,6 +283,10 @@
     $('btn-analyze').classList.add('hidden');
     if (!/^video\//.test(file.type) && !/\.(mp4|mov|webm)$/i.test(file.name)) {
       err.textContent = 'Please choose an MP4, MOV or WebM video.'; err.classList.remove('hidden'); return;
+    }
+    if (file.size > 350 * 1024 * 1024) {
+      err.textContent = 'That video is too large to prepare on a phone (' + Math.round(file.size / 1048576) + ' MB). Trim it in the Photos app to the part you want graded, then pick it again.';
+      err.classList.remove('hidden'); return;
     }
     $('file-name').textContent = file.name; $('file-name').classList.remove('hidden');
     setProgress(5, 'Reading video…');
@@ -306,54 +316,133 @@
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(file);
       var video = document.createElement('video');
+      var settled = false;
       video.muted = true; video.playsInline = true; video.preload = 'auto';
-      video.src = url;
+      function fail(msg) {
+        if (settled) return; settled = true;
+        URL.revokeObjectURL(url); reject(new Error(msg));
+      }
+      var metaTimer = setTimeout(function () {
+        fail('reading it timed out. If the video is stored in iCloud, download it to your phone first, then try again.');
+      }, 20000);
+      video.onerror = function () { clearTimeout(metaTimer); fail('Video could not be decoded.'); };
       video.onloadedmetadata = function () {
+        clearTimeout(metaTimer);
         var duration = video.duration || 0;
-        if (!duration || !isFinite(duration)) { URL.revokeObjectURL(url); reject(new Error('No duration found.')); return; }
-        extractFrames(video, duration, onProg).then(function (frames) {
+        if (!duration || !isFinite(duration)) { fail('No duration found.'); return; }
+        // iPhone Safari will often refuse to service seeks on a video that has
+        // never played. A short muted play() (allowed without a tap because
+        // the video is muted and inline) starts the media engine so the
+        // frame grabs below behave like they do on desktop. Best effort:
+        // if priming fails, extraction still tries.
+        primeVideo(video).then(function () {
+          return extractFrames(video, duration, onProg);
+        }).then(function (frames) {
           onProg(70, 'Extracting audio…');
           return extractAudio(file, Math.min(duration, 180)).then(function (audio) {
-            URL.revokeObjectURL(url);
+            if (!settled) { settled = true; URL.revokeObjectURL(url); }
             resolve({ frames: frames, audioB64: audio.b64, audioFormat: audio.format, fileName: file.name, duration: duration });
           });
-        }).catch(function (e) { URL.revokeObjectURL(url); reject(e); });
+        }).catch(function (e) { fail(e.message || String(e)); });
       };
-      video.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Video could not be decoded.')); };
+      video.src = url;
+    });
+  }
+
+  function primeVideo(video) {
+    return new Promise(function (res) {
+      var done = false;
+      function fin() {
+        if (done) return; done = true;
+        try { video.pause(); } catch (e) {}
+        res();
+      }
+      video.addEventListener('canplay', fin);
+      video.addEventListener('playing', fin);
+      var p = null;
+      try { p = video.play(); } catch (e) {}
+      if (p && p.catch) p.catch(function () {});
+      setTimeout(fin, 3500);
     });
   }
 
   function extractFrames(video, duration, onProg) {
-    return new Promise(function (resolve) {
-      var N = 12, frames = [], i = 0;
+    return new Promise(function (resolve, reject) {
+      var N = 12, frames = [], i = 0, misses = 0;
       var canvas = document.createElement('canvas');
       var ctx = canvas.getContext('2d');
+      var SEEK_MS = 4000;
+      function seekTo(t) {
+        return new Promise(function (res) {
+          var done = false;
+          function fin(ok) {
+            if (done) return; done = true;
+            video.removeEventListener('seeked', onSeek);
+            clearTimeout(timer);
+            res(ok);
+          }
+          function onSeek() { fin(true); }
+          var timer = setTimeout(function () { fin(false); }, SEEK_MS);
+          video.addEventListener('seeked', onSeek);
+          try { video.currentTime = Math.min(t, duration - 0.1); }
+          catch (e) { fin(false); }
+        });
+      }
+      function grab() {
+        var scale = Math.min(1, 480 / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+      }
       function next() {
         if (i >= N) { resolve(frames); return; }
         var t = duration * (i + 0.5) / N;
         onProg(5 + Math.round(60 * i / N), 'Grabbing frame ' + (i + 1) + ' of ' + N + '…');
-        var onSeek = function () {
-          video.removeEventListener('seeked', onSeek);
-          var scale = Math.min(1, 480 / video.videoWidth);
-          canvas.width = Math.round(video.videoWidth * scale);
-          canvas.height = Math.round(video.videoHeight * scale);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          frames.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
-          i++; next();
-        };
-        video.addEventListener('seeked', onSeek);
-        video.currentTime = Math.min(t, duration - 0.1);
+        seekTo(t).then(function (ok) {
+          var captured = false;
+          if (ok && video.videoWidth > 0) {
+            try { grab(); captured = true; } catch (e) { captured = false; }
+          }
+          if (!captured && Math.abs(video.currentTime - t) < 1 && video.videoWidth > 0) {
+            // Seek stalled but the video is showing (near enough) the target
+            // moment: take what is on screen rather than nothing.
+            try { grab(); captured = true; } catch (e) { captured = false; }
+          }
+          if (captured) { misses = 0; i++; next(); return; }
+          misses++; i++;
+          if (misses >= 2) {
+            if (!frames.length) {
+              reject(new Error('your phone could not pull frames from this video. This sometimes happens with very long or very large videos. Try trimming it in the Photos app to the part you want graded, then pick it again.'));
+              return;
+            }
+            resolve(frames); // grade with the frames we did get
+            return;
+          }
+          next();
+        });
       }
       next();
     });
+  }
+
+  // Audio is a bonus, never a blocker: any failure or stall resolves with no
+  // audio and the grade proceeds on frames alone (the server already handles
+  // a missing track). Overall cap 90s so this step can never hang the upload.
+  function extractAudio(file, maxSec) {
+    var timeout = new Promise(function (res) {
+      setTimeout(function () { res({ b64: null, format: null }); }, 90000);
+    });
+    return Promise.race([extractAudioInner(file, maxSec), timeout]);
   }
 
   // Decode audio, downmix to 16kHz mono. With the lamejs encoder loaded, encode
   // MP3 (about 8x smaller than WAV, so up to 3 minutes fits the upload limit).
   // Without it, keep the original behavior: WAV capped at 60 seconds. If MP3
   // encoding ever throws, re-render 60s of WAV so a grade can still go through.
-  function extractAudio(file, maxSec) {
-    return new Promise(function (resolve, reject) {
+  function extractAudioInner(file, maxSec) {
+    return new Promise(function (resolve) {
+      function noAudio() { resolve({ b64: null, format: null }); }
       var useMp3 = typeof lamejs !== 'undefined' && !!lamejs.Mp3Encoder;
       var cap = useMp3 ? maxSec : Math.min(maxSec, 60);
       var targetRate = 16000;
@@ -368,6 +457,7 @@
       reader.onload = function () {
         var AC = window.AudioContext || window.webkitAudioContext;
         var ac = new AC();
+        if (ac.resume) { try { ac.resume(); } catch (e) {} }
         ac.decodeAudioData(reader.result).then(function (buf) {
           decoded = buf;
           return render(cap);
@@ -375,11 +465,11 @@
           if (!useMp3) { resolve({ b64: encodeWAV(rendered), format: 'wav' }); return; }
           try { resolve({ b64: encodeMP3(rendered), format: 'mp3' }); }
           catch (eEnc) {
-            render(60).then(function (r2) { resolve({ b64: encodeWAV(r2), format: 'wav' }); }).catch(reject);
+            render(60).then(function (r2) { resolve({ b64: encodeWAV(r2), format: 'wav' }); }).catch(noAudio);
           }
-        }).catch(reject);
+        }).catch(noAudio);
       };
-      reader.onerror = reject;
+      reader.onerror = noAudio;
       reader.readAsArrayBuffer(file);
     });
   }
