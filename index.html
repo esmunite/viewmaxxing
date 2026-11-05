@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#edf0f7">
+<meta name="theme-color" content="#3a86dc">
 <title>BennettIQ | your AI video coach</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90' fill='%23c98f3d'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90' fill='%23ee4526'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body class="brand-sky">
 
 <!-- ============ VIEW: LANDING ============ -->
 <section id="view-landing" class="view">
@@ -26,8 +26,9 @@
       <button class="btn btn-dark" data-auth-open="signup">Get Started <span aria-hidden="true">→</span></button>
     </nav>
 
+    <div class="sky-hero">
     <div class="hero-panel reveal">
-      <h1 class="hero-h1">Know your video<br><em>before you post it.</em></h1>
+      <h1 class="hero-h1">Know your video<br>before you post it<span class="h1-dot">.</span></h1>
       <p class="hero-sub">Upload your video, get a score out of 100 based on your goal, and see what you can do to make it better. Free to use, with 3 video grades a day and no credit card required.</p>
       <p class="hero-sub hero-sub-2"><strong>Curious how it works?</strong> Check out our <a class="hero-how-link" href="/how.html"><em>How It Works</em></a> section.</p>
       <div class="hero-ctas">
@@ -40,6 +41,45 @@
           <img src="tiktok-logo.png" alt="" aria-hidden="true" class="works-logo"><img src="instagram-logo.png" alt="" aria-hidden="true" class="works-logo"><img src="youtube-logo.png" alt="" aria-hidden="true" class="works-logo"><img src="snapchat-logo.png" alt="" aria-hidden="true" class="works-logo"><img src="x-logo.png" alt="" aria-hidden="true" class="works-logo"><img src="facebook-logo.png" alt="" aria-hidden="true" class="works-logo">
         </div></div>
       </div>
+
+      <div class="lg-head"><span class="lg-pill"><span class="lg-pulse"></span> LIVE GRADE · SIMULATION</span></div>
+      <div class="lg-row" id="lgRow">
+        <div class="lg-shape">
+          <img src="about-strip-3.jpg" alt="Elijah at a BennettIQ booth">
+          <span class="lg-ts">0:00</span>
+          <div class="lg-ui">
+            <div class="lg-row-line"><span>Opening hook</span><strong>9/10</strong></div>
+            <div class="lg-bar"><i data-w="90"></i></div>
+          </div>
+        </div>
+        <div class="lg-shape lg-arch">
+          <img src="about-elijah.jpg" alt="Elijah holding a Woody doll in a shop">
+          <span class="lg-ts">0:04</span>
+          <div class="lg-ui">
+            <div class="lg-row-line"><span>Visual hook</span><strong>8/10</strong></div>
+            <div class="lg-bar"><i data-w="80"></i></div>
+          </div>
+        </div>
+        <div class="lg-shape">
+          <img src="about-strip-4.jpg" alt="Holding a camera">
+          <span class="lg-ts">0:12</span>
+          <span class="lg-badge"><span class="lg-score-num" data-score="74">0</span><small>SCORE</small></span>
+          <div class="lg-ui">
+            <div class="lg-row-line"><span>Retention</span><strong>7/10</strong></div>
+            <div class="lg-bar"><i data-w="70"></i></div>
+          </div>
+        </div>
+        <div class="lg-shape lg-arch">
+          <img src="about-strip-2.jpg" alt="Mountain lake">
+          <span class="lg-ts">0:27</span>
+          <div class="lg-ui">
+            <div class="lg-fix-tag">TOP FIX</div>
+            <p class="lg-fix-note">Hold this shot 2s longer</p>
+          </div>
+        </div>
+      </div>
+      <p class="lg-note">An illustrative simulation of a grade in progress. Real reports are built from your own video.</p>
+    </div>
     </div>
 
     <section class="home-section reveal" id="demo" aria-labelledby="demo-h">
@@ -340,5 +380,46 @@
 
 <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 <script src="app.js"></script>
+<script>
+(function () {
+  var row = document.getElementById('lgRow');
+  if (!row) return;
+  var shapes = Array.prototype.slice.call(row.querySelectorAll('.lg-shape'));
+  function fill(sh) { var bar = sh.querySelector('.lg-bar i'); if (bar) bar.style.width = bar.getAttribute('data-w') + '%'; }
+  function reset() {
+    shapes.forEach(function (sh) {
+      var bar = sh.querySelector('.lg-bar i'); if (bar) bar.style.width = '0%';
+      var num = sh.querySelector('.lg-score-num'); if (num) num.textContent = '0';
+    });
+  }
+  function countUp(sh) {
+    var num = sh.querySelector('.lg-score-num');
+    if (!num) return;
+    var target = parseInt(num.getAttribute('data-score'), 10) || 0;
+    var t0 = Date.now();
+    (function tick() {
+      var p = Math.min(1, (Date.now() - t0) / 650);
+      num.textContent = Math.round(target * p);
+      if (p < 1) requestAnimationFrame(tick);
+    })();
+  }
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    shapes.forEach(function (sh) { fill(sh); var n = sh.querySelector('.lg-score-num'); if (n) n.textContent = n.getAttribute('data-score'); });
+    return;
+  }
+  var idx = 0;
+  function light(i) {
+    if (i === 0) reset();
+    shapes.forEach(function (sh, j) {
+      sh.classList.toggle('lg-lit', j === i);
+      if (j <= i) fill(sh);
+    });
+    countUp(shapes[i]);
+  }
+  light(0);
+  setInterval(function () { idx = (idx + 1) % shapes.length; light(idx); }, 1800);
+})();
+</script>
 </body>
 </html>
