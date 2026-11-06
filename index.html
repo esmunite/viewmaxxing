@@ -38,7 +38,7 @@
       <div class="lg-head"><span class="lg-pill"><span class="lg-pulse"></span> LIVE GRADE · SIMULATION</span></div>
       <div class="lg-row" id="lgRow">
         <div class="lg-shape">
-          <img src="about-strip-3.jpg" alt="Elijah at a BennettIQ booth">
+          <img src="grade-frame-1.jpg" alt="Video frame at 0:00: hands chopping red peppers on a wooden board">
           <span class="lg-ts">0:00</span>
           <div class="lg-ui">
             <div class="lg-row-line"><span>Opening hook</span><strong>9/10</strong></div>
@@ -46,7 +46,7 @@
           </div>
         </div>
         <div class="lg-shape lg-arch">
-          <img src="about-elijah.jpg" alt="Elijah holding a Woody doll in a shop">
+          <img src="grade-frame-2.jpg" alt="Video frame at 0:04: sausages, onions, and chilies sizzling in a pan">
           <span class="lg-ts">0:04</span>
           <div class="lg-ui">
             <div class="lg-row-line"><span>Visual hook</span><strong>8/10</strong></div>
@@ -54,7 +54,7 @@
           </div>
         </div>
         <div class="lg-shape">
-          <img src="about-strip-4.jpg" alt="Holding a camera">
+          <img src="grade-frame-3.jpg" alt="Video frame at 0:12: the finished pasta dish with fresh greens">
           <span class="lg-ts">0:12</span>
           <span class="lg-badge"><span class="lg-score-num" data-score="74">0</span><small>SCORE</small></span>
           <div class="lg-ui">
@@ -63,7 +63,7 @@
           </div>
         </div>
         <div class="lg-shape lg-arch">
-          <img src="about-strip-2.jpg" alt="Mountain lake">
+          <img src="grade-frame-4.jpg" alt="Video frame at 0:27: final plated seafood pasta, close-up">
           <span class="lg-ts">0:27</span>
           <div class="lg-ui">
             <div class="lg-fix-tag">TOP FIX</div>
@@ -71,7 +71,19 @@
           </div>
         </div>
       </div>
-      <p class="lg-note">An illustrative simulation of a grade in progress. Real reports are built from your own video.</p>
+      <div class="lg-timeline" aria-hidden="true">
+        <div class="lg-tl-head">Sample video &middot; 0:30 &mdash; graded moment by moment</div>
+        <div class="lg-tl-track">
+          <i class="lg-tl-fill" id="lgTlFill" style="width:90%"></i>
+          <span class="lg-tl-dot" style="left:0%"></span>
+          <span class="lg-tl-dot" style="left:13.3%"></span>
+          <span class="lg-tl-dot" style="left:40%"></span>
+          <span class="lg-tl-dot" style="left:90%"></span>
+          <i class="lg-tl-knob" id="lgTlKnob" style="left:90%"></i>
+        </div>
+        <div class="lg-tl-labels"><span style="left:0%">0:00</span><span style="left:13.3%">0:04</span><span style="left:40%">0:12</span><span style="left:90%">0:27</span><span class="lg-tl-end">0:30</span></div>
+      </div>
+      <p class="lg-note">Photos above are a simulated graded video. Real reports are built from your own video.</p>
     </div>
     </div>
 
@@ -227,6 +239,7 @@
       <span class="footer-dot" aria-hidden="true">·</span>
       <a href="/about.html">About</a>
     </footer>
+    <p class="foot-credits">Frame photos: Shixart1985, PattayaPatrol, jeuwre, and JIP via Wikimedia Commons (CC BY / CC BY-SA)</p>
   </div>
 </section>
 
@@ -409,6 +422,14 @@
     shapes.forEach(function (sh) { fill(sh); var n = sh.querySelector('.lg-score-num'); if (n) n.textContent = n.getAttribute('data-score'); });
     return;
   }
+  var tlPcts = [0, 13.3, 40, 90];
+  var tlFill = document.getElementById('lgTlFill');
+  var tlKnob = document.getElementById('lgTlKnob');
+  function tlSet(i) {
+    if (!tlFill || !tlKnob) return;
+    tlFill.style.width = tlPcts[i] + '%';
+    tlKnob.style.left = tlPcts[i] + '%';
+  }
   var idx = 0;
   function light(i) {
     if (i === 0) reset();
@@ -417,6 +438,7 @@
       if (j <= i) fill(sh);
     });
     countUp(shapes[i]);
+    tlSet(i);
   }
   light(0);
   setInterval(function () { idx = (idx + 1) % shapes.length; light(idx); }, 1800);

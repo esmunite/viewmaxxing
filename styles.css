@@ -982,7 +982,7 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 /* ================================================================
    BRAND SKY (Nov 2026): sky blue / cloudy white / amber red system,
    scoped to body.brand-sky (homepage, About, How). Other pages keep
-   the previous kit until migrated. Type stays BennettIQ Inter throughout; only colors and the homepage hero structure change.
+   the previous kit until migrated. Type is BennettIQ Inter throughout, except the homepage hero headline, which uses Anton (the reference's condensed display face) at Elijah's direction.
    ================================================================ */
 body.brand-sky {
   --accent: #2f7cd6;
@@ -1013,7 +1013,8 @@ body.brand-sky .sky-hero {
   padding: 22px 22px 0;
 }
 body.brand-sky .sky-hero .hero-panel { background: transparent; box-shadow: none; border: none; max-width: 1180px; margin: 0 auto; padding-top: 56px; }
-body.brand-sky .hero-h1 { font-weight: 800; color: #fff; font-size: clamp(44px, 6.6vw, 84px); line-height: 1.04; letter-spacing: -0.02em; }
+@font-face { font-family: 'Anton'; src: url('anton.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+body.brand-sky .hero-h1 { font-family: 'Anton', sans-serif; font-weight: 400; color: #fff; font-size: clamp(58px, 8.8vw, 118px); line-height: 0.99; letter-spacing: 0.01em; text-transform: uppercase; }
 body.brand-sky .hero-h1 em { font-style: normal; color: #fff; }
 body.brand-sky .hero-h1 .h1-dot { color: var(--brand-red); }
 body.brand-sky .hero-sub { color: rgba(255, 255, 255, 0.94); }
@@ -1075,7 +1076,7 @@ body.brand-sky .doc-wrap table th { background: var(--sky); color: #fff; }
 @media (max-width: 640px) {
   body.brand-sky .sky-hero { padding: 16px 14px 0; border-radius: 0; }
   body.brand-sky .sky-hero .hero-panel { padding-top: 36px; }
-  body.brand-sky .hero-h1 { font-size: clamp(40px, 11.5vw, 56px); }
+  body.brand-sky .hero-h1 { font-size: clamp(52px, 15.5vw, 76px); }
   body.brand-sky .lg-head { margin-top: 36px; }
   body.brand-sky .lg-row { gap: 14px; margin-top: 18px; }
   body.brand-sky .lg-shape { height: 235px; border-radius: 26px; }
@@ -1095,3 +1096,30 @@ body.brand-sky .landing-page > .partner-row { max-width: 1160px; margin: 0 auto;
 @media (max-width: 640px) {
   body.brand-sky .landing-page > .partner-row { padding: 24px 16px 0; }
 }
+
+/* Brand Sky fix 3: make the grading obvious - a video timeline under the frames,
+   playhead synced to the sequencer, and a focus ring on the frame being graded. */
+body.brand-sky .lg-ui, body.brand-sky .lg-ts, body.brand-sky .lg-badge { z-index: 3; }
+body.brand-sky .lg-shape::before { content: ''; position: absolute; inset: 11px; border: 1.5px solid rgba(255, 255, 255, 0); border-radius: 26px; z-index: 2; pointer-events: none; transition: border-color 0.45s ease; }
+body.brand-sky .lg-shape.lg-arch::before { border-radius: 999px 999px 26px 26px; }
+body.brand-sky .lg-shape.lg-lit::before { border-color: rgba(255, 255, 255, 0.75); }
+body.brand-sky .lg-timeline { max-width: 1180px; margin: 30px auto 0; padding: 0 6px; text-align: left; }
+body.brand-sky .lg-tl-head { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #44586a; margin-bottom: 12px; }
+body.brand-sky .lg-tl-track { position: relative; height: 6px; border-radius: 999px; background: rgba(18, 33, 46, 0.16); }
+body.brand-sky .lg-tl-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--sky); transition: width 0.7s ease; }
+body.brand-sky .lg-tl-dot { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 2px solid rgba(18, 33, 46, 0.4); transform: translate(-50%, -50%); }
+body.brand-sky .lg-tl-knob { position: absolute; top: 50%; width: 17px; height: 17px; border-radius: 50%; background: #fff; border: 2.5px solid var(--brand-ink); box-shadow: 0 4px 12px rgba(18, 33, 46, 0.35); transform: translate(-50%, -50%); transition: left 0.7s ease; }
+body.brand-sky .lg-tl-labels { position: relative; height: 20px; margin-top: 7px; }
+body.brand-sky .lg-tl-labels span { position: absolute; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #44586a; }
+body.brand-sky .lg-tl-labels span:first-child { transform: none; }
+body.brand-sky .lg-tl-labels .lg-tl-end { left: auto; right: 0; transform: none; }
+@media (max-width: 640px) {
+  body.brand-sky .lg-timeline { margin-top: 24px; padding: 0 2px; }
+  body.brand-sky .lg-shape::before { inset: 9px; border-radius: 20px; }
+  body.brand-sky .lg-shape.lg-arch::before { border-radius: 999px 999px 20px 20px; }
+  body.brand-sky .lg-tl-labels .lg-tl-end { display: none; }
+}
+
+/* Photo credits live under the footer (the licenses require the names on the page);
+   the simulation note itself stays exactly as Elijah worded it. */
+body.brand-sky .foot-credits { text-align: center; color: #98a2b3; font-size: 11.5px; margin: 14px auto 0; padding: 0 24px; }
