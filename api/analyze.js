@@ -59,7 +59,9 @@ async function handleSync(req, res) {
     var audioFormat = body.audioFormat === 'mp3' ? 'mp3' : 'wav'; // older clients send no format and mean wav
     if (!brief || !brief.goal || !(brief.platforms || []).length)
       return res.status(400).json({ error: 'brief_required' });
-    if (!audioB64) return res.status(400).json({ error: 'audio_required' });
+    // Audio is NOT required: some phones cannot extract a track from some
+    // videos (and some videos have none). A missing track grades frames-only
+    // and the report is flagged, rather than dead-ending the user.
 
     var day = new Date().toISOString().slice(0, 10); // UTC day
     var used = await getUsage(user.id, day);
@@ -68,12 +70,15 @@ async function handleSync(req, res) {
     // 1) Transcribe (Groq Whisper, free tier). If it fails or times out, grade from
     //    the frames and brief alone rather than failing the whole request.
     var transcript = '';
-    try { transcript = await transcribe(audioB64, audioFormat); }
-    catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
+    if (audioB64) {
+      try { transcript = await transcribe(audioB64, audioFormat); }
+      catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
+    }
 
     // 2) Grade: Gemini models first (full vision), then Groq chat models (transcript-only)
     var t0 = Date.now();
-    var report = await gradeWithFallbackChain(t0, brief, frames, transcript);
+    var report = await gradeWithFallbackChain(t0, brief, frames, transcript, !!audioB64);
+    if (!audioB64) report.audio_unavailable = true;
 
     // 3) Save + increment quota
     // Keep one mid-video frame as a thumbnail so the creator can recognize
@@ -176,7 +181,7 @@ async function handleSubmit(req, res, body) {
     var audioFormat = body.audioFormat === 'mp3' ? 'mp3' : 'wav';
     if (!brief || !brief.goal || !(brief.platforms || []).length)
       return res.status(400).json({ error: 'brief_required' });
-    if (!audioB64) return res.status(400).json({ error: 'audio_required' });
+    // Audio optional (see the sync path): a missing track grades frames-only.
 
     // The daily limit counts finished grades PLUS tickets still in line, so
     // nobody can queue past it. A failed job frees its slot on its own.
@@ -249,9 +254,12 @@ async function processJob(jobId, req) {
     var transcript = '';
     var report = null;
     try {
-      try { transcript = await transcribe(job.audio_b64, job.audio_format || 'wav'); }
-      catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
-      report = await gradeWithFallbackChain(Date.now(), job.brief, frames, transcript);
+      if (job.audio_b64) {
+        try { transcript = await transcribe(job.audio_b64, job.audio_format || 'wav'); }
+        catch (eT) { console.error('transcribe failed, grading without transcript:', eT && eT.message ? eT.message : eT); }
+      }
+      report = await gradeWithFallbackChain(Date.now(), job.brief, frames, transcript, !!job.audio_b64);
+      if (!job.audio_b64) report.audio_unavailable = true;
     } catch (eG) {
       console.error('job grade failed:', eG && eG.message);
       await patchJob(jobId, { status: 'failed', error: 'analysis_failed', frames: null, audio_b64: null });
@@ -464,7 +472,7 @@ function normPlatform(p) {
   return 'tiktok';
 }
 
-function buildPrompt(brief, transcript, hasFrames) {
+function buildPrompt(brief, transcript, hasFrames, hasAudio) {
   var goal = (brief.goal || 'virality').toLowerCase();
   var rubric = OBJECTIVE_RUBRICS[goal] || OBJECTIVE_RUBRICS.virality;
   var plats = (brief.platforms || []).join(', ') || 'TikTok';
@@ -485,11 +493,11 @@ function buildPrompt(brief, transcript, hasFrames) {
     brief.results ? '- Creator-reported results (shared by the creator, not independently verified): ' + brief.results : '',
     '',
     'TRANSCRIPT',
-    transcript || '(no speech detected)',
+    transcript || (hasAudio === false ? '(no audio track was available for this video)' : '(no speech detected)'),
     '',
     'FRAMES',
     hasFrames
-      ? '12 video frames are attached in order. Use them for all visual judgments.'
+      ? '12 video frames are attached in order. Use them for all visual judgments.' + (hasAudio === false ? ' No audio track was available: do not invent spoken lines, lyrics, or sounds. Judge the hook, pacing, and any sound-related dimension from the frames, on-screen text, and brief only, and note the missing audio in limitations.' : '')
       : 'No frames were provided. Grade from the transcript and brief only, and say so clearly in limitations and the visuals-related dimension. Never claim you saw visuals.',
     '',
     'HOW TO THINK (lenses, not laws)',
@@ -548,8 +556,8 @@ function buildPrompt(brief, transcript, hasFrames) {
   return lines.filter(Boolean).join('\n');
 }
 
-async function gradeWithGemini(t0, brief, frames, transcript, model, fast) {
-  var parts = [{ text: buildPrompt(brief, transcript, true) }];
+async function gradeWithGemini(t0, brief, frames, transcript, model, fast, hasAudio) {
+  var parts = [{ text: buildPrompt(brief, transcript, true, hasAudio) }];
   frames.slice(0, 12).forEach(function (f) {
     parts.push({ inlineData: { mimeType: 'image/jpeg', data: f } });
   });
@@ -581,12 +589,12 @@ async function gradeWithGemini(t0, brief, frames, transcript, model, fast) {
 }
 
 /* ---------- fallback chain: try models in order, log each failure ---------- */
-async function gradeWithFallbackChain(t0, brief, frames, transcript) {
+async function gradeWithFallbackChain(t0, brief, frames, transcript, hasAudio) {
   var lastErr = null, visionErrs = [], i, report;
   for (i = 0; i < GEMINI_MODELS.length; i++) {
     if (i === 0 ? msLeft(t0) < 30000 : !canAfford(t0, 60000)) { console.error('skipping gemini [' + GEMINI_MODELS[i] + ']: budget low'); break; }
     try {
-      return await gradeWithGemini(t0, brief, frames, transcript, GEMINI_MODELS[i], i > 0);
+      return await gradeWithGemini(t0, brief, frames, transcript, GEMINI_MODELS[i], i > 0, hasAudio);
     } catch (e) {
       console.error('gemini failed [' + GEMINI_MODELS[i] + ']:', e && e.message);
       lastErr = e;
@@ -601,7 +609,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
     for (i = 0; i < orModels.length; i++) {
       if (i === 0 ? msLeft(t0) < 30000 : !canAfford(t0, 60000)) { console.error('skipping openrouter [' + orModels[i] + ']: budget low'); break; }
       try {
-        return await gradeWithOpenRouterVision(t0, brief, frames, transcript, orModels[i].trim());
+        return await gradeWithOpenRouterVision(t0, brief, frames, transcript, orModels[i].trim(), hasAudio);
       } catch (e3) {
         console.error('openrouter vision failed [' + orModels[i] + ']:', e3 && e3.message);
         lastErr = e3;
@@ -613,7 +621,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
   for (i = 0; i < GROQ_FALLBACK_MODELS.length; i++) {
     if (msLeft(t0) < 20000) { console.error('skipping groq [' + GROQ_FALLBACK_MODELS[i] + ']: budget low'); break; } // transcript-only fallback is fast (~5-12s typical)
     try {
-      report = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[i]);
+      report = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[i], hasAudio);
       report.visual_analysis_unavailable = true;
       if (visionErrs.length) report.vision_error = visionErrs.join(' \u00b7 ').slice(0, 300);
       return report;
@@ -626,7 +634,7 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
   if (msLeft(t0) > 10000) {
     try {
       console.error('salvage attempt: final groq try with remaining budget');
-      var salvaged = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[0]);
+      var salvaged = await gradeWithGroqFallback(t0, brief, transcript, GROQ_FALLBACK_MODELS[0], hasAudio);
       salvaged.visual_analysis_unavailable = true;
       if (visionErrs.length) salvaged.vision_error = visionErrs.join(' \u00b7 ').slice(0, 300);
       return salvaged;
@@ -636,8 +644,8 @@ async function gradeWithFallbackChain(t0, brief, frames, transcript) {
 }
 
 /* ---------- vision grading via OpenRouter free models (OpenAI-compatible) ---------- */
-async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model) {
-  var content = [{ type: 'text', text: buildPrompt(brief, transcript, true) }];
+async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model, hasAudio) {
+  var content = [{ type: 'text', text: buildPrompt(brief, transcript, true, hasAudio) }];
   frames.slice(0, 12).forEach(function (f) {
     content.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + f } });
   });
@@ -673,7 +681,7 @@ async function gradeWithOpenRouterVision(t0, brief, frames, transcript, model) {
 }
 
 /* ---------- fallback: Groq chat, transcript + brief only ---------- */
-async function gradeWithGroqFallback(t0, brief, transcript, model) {
+async function gradeWithGroqFallback(t0, brief, transcript, model, hasAudio) {
   var r = await fetch(GROQ_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -687,7 +695,7 @@ async function gradeWithGroqFallback(t0, brief, transcript, model) {
       max_tokens: 6000,
       messages: [
         { role: 'system', content: 'You are a short-form video coach. Respond with ONLY valid JSON, no markdown.' },
-        { role: 'user', content: buildPrompt(brief, transcript, false) }
+        { role: 'user', content: buildPrompt(brief, transcript, false, hasAudio) }
       ]
     }),
     signal: AbortSignal.timeout(Math.max(10000, Math.min(60000, msLeft(t0) - 15000)))
