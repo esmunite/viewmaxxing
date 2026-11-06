@@ -1128,3 +1128,6 @@ body.brand-sky .foot-credits { text-align: center; color: #98a2b3; font-size: 11
    track the scroll directly instead of easing over 0.7s. */
 body.brand-sky .lg-tl-fill { transition: width 0.12s linear; }
 body.brand-sky .lg-tl-knob { transition: left 0.12s linear; }
+
+/* The grading loading star wears the brand amber red (Elijah, 2026-11-06). */
+body.brand-sky .loading-star { color: #ee4526; }
