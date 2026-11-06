@@ -1123,3 +1123,8 @@ body.brand-sky .lg-tl-labels .lg-tl-end { left: auto; right: 0; transform: none;
 /* Photo credits live under the footer (the licenses require the names on the page);
    the simulation note itself stays exactly as Elijah worded it. */
 body.brand-sky .foot-credits { text-align: center; color: #98a2b3; font-size: 11.5px; margin: 14px auto 0; padding: 0 24px; }
+
+/* Brand Sky fix 4: the timeline is scroll-driven now, so the fill and knob
+   track the scroll directly instead of easing over 0.7s. */
+body.brand-sky .lg-tl-fill { transition: width 0.12s linear; }
+body.brand-sky .lg-tl-knob { transition: left 0.12s linear; }
