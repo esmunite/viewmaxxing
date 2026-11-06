@@ -292,7 +292,8 @@
     setProgress(5, 'Reading video…');
     try {
       prepared = await prepareVideo(file, setProgress);
-      setProgress(100, 'Ready to grade.');
+      if (prepared.audioB64) setProgress(100, 'Ready to grade.');
+      else setProgress(100, 'Ready to grade. This phone could not extract the audio' + (prepared.audioError ? ' (' + prepared.audioError + ')' : '') + ', so this grade will use frames only.');
       $('btn-analyze').classList.remove('hidden');
     } catch (e2) {
       err.textContent = 'Could not read that video: ' + (e2.message || e2);
@@ -341,7 +342,7 @@
           onProg(70, 'Extracting audio…');
           return extractAudio(file, Math.min(duration, 180)).then(function (audio) {
             if (!settled) { settled = true; URL.revokeObjectURL(url); }
-            resolve({ frames: frames, audioB64: audio.b64, audioFormat: audio.format, fileName: file.name, duration: duration });
+            resolve({ frames: frames, audioB64: audio.b64, audioFormat: audio.format, audioError: audio.b64 ? '' : lastAudioError, fileName: file.name, duration: duration });
           });
         }).catch(function (e) { fail(e.message || String(e)); });
       };
@@ -427,49 +428,90 @@
   }
 
   // Audio is a bonus, never a blocker: any failure or stall resolves with no
-  // audio and the grade proceeds on frames alone (the server already handles
-  // a missing track). Overall cap 90s so this step can never hang the upload.
+  // audio and the grade proceeds on frames alone (the server grades frames-only
+  // when no track arrives, and flags the report so it is never mistaken for a
+  // full grade). Overall cap 90s so this step can never hang the upload.
+  var lastAudioError = '';
   function extractAudio(file, maxSec) {
     var timeout = new Promise(function (res) {
-      setTimeout(function () { res({ b64: null, format: null }); }, 90000);
+      setTimeout(function () { lastAudioError = 'extraction timed out'; res({ b64: null, format: null }); }, 90000);
     });
     return Promise.race([extractAudioInner(file, maxSec), timeout]);
   }
 
-  // Decode audio, downmix to 16kHz mono. With the lamejs encoder loaded, encode
-  // MP3 (about 8x smaller than WAV, so up to 3 minutes fits the upload limit).
-  // Without it, keep the original behavior: WAV capped at 60 seconds. If MP3
-  // encoding ever throws, re-render 60s of WAV so a grade can still go through.
+  // Decode audio, downmix to mono. With the lamejs encoder loaded, encode MP3
+  // (about 8x smaller than WAV, so up to 3 minutes fits the upload limit).
+  // Without it, WAV capped at 60 seconds. If MP3 encoding ever throws,
+  // re-render WAV so a grade can still go through.
+  // Phone hardening (iOS Safari): decode through the callback form of
+  // decodeAudioData (the promise-only form is unreliable there), and render
+  // through a sample-rate ladder: some phone browsers refuse an
+  // OfflineAudioContext at 16kHz, so fall back to 22050, then the file's own
+  // rate, instead of losing the whole track.
   function extractAudioInner(file, maxSec) {
     return new Promise(function (resolve) {
-      function noAudio() { resolve({ b64: null, format: null }); }
+      function noAudio(e) {
+        lastAudioError = e && (e.name || e.message) ? String(e.name || e.message) : 'extraction failed';
+        resolve({ b64: null, format: null });
+      }
       var useMp3 = typeof lamejs !== 'undefined' && !!lamejs.Mp3Encoder;
       var cap = useMp3 ? maxSec : Math.min(maxSec, 60);
-      var targetRate = 16000;
       var decoded = null;
-      function render(secs) {
-        var offline = new OfflineAudioContext(1, Math.ceil(Math.min(decoded.duration, secs) * targetRate), targetRate);
+      function renderAt(secs, rate) {
+        var len = Math.max(1, Math.ceil(Math.min(decoded.duration, secs) * rate));
+        var offline = new OfflineAudioContext(1, len, rate);
         var src = offline.createBufferSource(); src.buffer = decoded;
         src.connect(offline.destination); src.start(0);
         return offline.startRendering();
       }
+      function render(secs) {
+        var rates = [16000, 22050, decoded.sampleRate];
+        var idx = 0;
+        function attempt() {
+          var p;
+          try { p = renderAt(secs, rates[idx]); } catch (eSync) { p = Promise.reject(eSync); }
+          return p.catch(function (e) {
+            idx++;
+            if (idx < rates.length) return attempt();
+            throw e;
+          });
+        }
+        return attempt();
+      }
+      function wavFrom(buffer) {
+        // WAV is uncompressed: at high sample rates a long render would blow
+        // the upload limit, so trim the seconds to fit about 3.4MB.
+        if (buffer.sampleRate * buffer.duration * 2 <= 3400000) return Promise.resolve(encodeWAV(buffer));
+        var fitSecs = Math.floor(1700000 / buffer.sampleRate);
+        return render(fitSecs).then(function (r2) { return encodeWAV(r2); });
+      }
+      function decode(ab) {
+        return new Promise(function (res, rej) {
+          var done = false;
+          function ok(b) { if (!done) { done = true; res(b); } }
+          function bad(e) { if (!done) { done = true; rej(e || new Error('decode failed')); } }
+          var AC = window.AudioContext || window.webkitAudioContext;
+          var ac = new AC();
+          if (ac.resume) { try { ac.resume(); } catch (e) {} }
+          var p = null;
+          try { p = ac.decodeAudioData(ab, ok, bad); } catch (e) { bad(e); return; }
+          if (p && p.then) p.then(ok, bad);
+        });
+      }
       var reader = new FileReader();
       reader.onload = function () {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        var ac = new AC();
-        if (ac.resume) { try { ac.resume(); } catch (e) {} }
-        ac.decodeAudioData(reader.result).then(function (buf) {
+        decode(reader.result).then(function (buf) {
           decoded = buf;
           return render(cap);
         }).then(function (rendered) {
-          if (!useMp3) { resolve({ b64: encodeWAV(rendered), format: 'wav' }); return; }
+          if (!useMp3) { wavFrom(rendered).then(function (b64) { resolve({ b64: b64, format: 'wav' }); }).catch(noAudio); return; }
           try { resolve({ b64: encodeMP3(rendered), format: 'mp3' }); }
           catch (eEnc) {
-            render(60).then(function (r2) { resolve({ b64: encodeWAV(r2), format: 'wav' }); }).catch(noAudio);
+            render(60).then(function (r2) { return wavFrom(r2); }).then(function (b64) { resolve({ b64: b64, format: 'wav' }); }).catch(noAudio);
           }
         }).catch(noAudio);
       };
-      reader.onerror = noAudio;
+      reader.onerror = function () { noAudio(new Error('could not read the file')); };
       reader.readAsArrayBuffer(file);
     });
   }
@@ -812,6 +854,9 @@
 
   function renderReport(rep) {
     var html = '';
+    if (rep.audio_unavailable) {
+      html += '<div class="fallback-note">Audio was not available for this grade, so it was scored from the frames and your brief only. Spoken words, music, and sound were not judged.</div>';
+    }
     if (rep.visual_analysis_unavailable) {
       var diag = rep.vision_error ? ' <span class="fallback-diag">Error: ' + String(rep.vision_error).replace(/</g, '&lt;') + '</span>' : '';
       html += '<div class="fallback-note">Visual analysis was temporarily unavailable, so this grade was done from the transcript and your brief only. Frames were skipped this time.' + diag + '</div>';
