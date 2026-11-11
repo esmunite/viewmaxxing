@@ -233,6 +233,7 @@ body {
 }
 .pill-brand { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 18px; color: #0b1220; letter-spacing: -0.01em; }
 .brand-star { color: #c98f3d; font-size: 15px; }
+.brand-mark { width: 1.28em; height: 1.28em; flex: none; display: block; }
 .pill-links { display: flex; gap: 30px; }
 .pill-links a { color: #3a4556; text-decoration: none; font-size: 15px; transition: color 0.2s; }
 .pill-links a:hover { color: #0b1220; }
