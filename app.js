@@ -41,10 +41,10 @@
   }
   function showPane(id) {
     closeFrameViewer();
-    ['pane-brief', 'pane-upload', 'pane-report', 'pane-history'].forEach(function (p) {
+    ['pane-brief', 'pane-upload', 'pane-report', 'pane-history', 'pane-how'].forEach(function (p) {
       $(p).classList.toggle('hidden', p !== id);
     });
-    var step = { 'pane-brief': 1, 'pane-upload': 2, 'pane-report': 3, 'pane-history': 0 }[id];
+    var step = { 'pane-brief': 1, 'pane-upload': 2, 'pane-report': 3, 'pane-history': 0, 'pane-how': 0 }[id];
     [1, 2, 3].forEach(function (n) { $('step-' + n).classList.toggle('active', n === step); });
     window.scrollTo(0, 0);
   }
@@ -179,6 +179,9 @@
     if (tab) setAuthTab(tab.getAttribute('data-tab'));
     if (e.target.closest('#btn-signout')) { sb.auth.signOut(); }
     if (e.target.closest('#btn-history')) { loadHistory(); }
+    if (e.target.closest('#btn-how')) { showPane('pane-how'); }
+    if (e.target.closest('#btn-back-how')) { showPane(lastReport ? 'pane-report' : 'pane-brief'); }
+    if (e.target.closest('#btn-grade-how')) { if (brief) { resetUpload(); showPane('pane-upload'); } else { showPane('pane-brief'); } }
     if (e.target.closest('#btn-back-main')) { showPane(brief ? 'pane-upload' : 'pane-brief'); }
     if (e.target.closest('#btn-retry-grade')) { showPane('pane-brief'); }
     if (e.target.closest('#btn-goto-history')) { loadHistory(); }
@@ -186,6 +189,7 @@
     if (e.target.closest('#btn-new')) { resetUpload(); showPane('pane-upload'); }
     if (e.target.closest('#btn-grade-history')) { if (brief) { resetUpload(); showPane('pane-upload'); } else { showPane('pane-brief'); } }
     if (e.target.closest('#btn-download')) { downloadReport(); }
+    if (e.target.closest('#btn-pdf')) { printReport(); }
   });
 
   /* ---------------- brief ---------------- */
@@ -1010,6 +1014,52 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
+  /* Visual PDF: fills the print-only sheet, then opens the browser print
+     dialog where the user picks "Save as PDF". */
+  function printReport() {
+    if (!lastReport) return;
+    var r = lastReport, b = lastBrief || {};
+    var score = Math.max(0, Math.min(100, Number(r.overall_score) || 0));
+    var C = 2 * Math.PI * 52;
+    var ring = '<svg viewBox="0 0 120 120" class="ps-ring"><circle cx="60" cy="60" r="52" fill="none" stroke="#e6e9f2" stroke-width="10"/>' +
+      '<circle cx="60" cy="60" r="52" fill="none" stroke="#3a86dc" stroke-width="10" stroke-linecap="round" stroke-dasharray="' +
+      (score / 100 * C).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 60 60)"/></svg>';
+    var mark = '<svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="18.5" fill="none" stroke="#3a86dc" stroke-width="5.5" stroke-linecap="round" stroke-dasharray="87 116.2" transform="rotate(135 24 24)"/><circle cx="37.1" cy="37.1" r="4.6" fill="#ee4526"/><polygon points="20.5,18.5 20.5,29.5 30,24" fill="#12212e"/></svg>';
+    var h = '<div class="ps-head">' + mark + '<span class="ps-brand">BennettIQ</span><span class="ps-meta">Video grade</span></div>';
+    h += '<p class="ps-sub">Goal: ' + esc(b.goal || '-') + ' &middot; Platforms: ' + esc((b.platforms || []).join(', ') || '-') + '</p>';
+    h += '<div class="ps-score"><div class="ps-ringwrap">' + ring + '<div class="ps-num">' + score + '</div></div>' +
+      '<div><div class="ps-band">' + esc(r.score_band || '') + '</div><div class="ps-of">out of 100 &middot; ' + esc(goalScoreLabel()) + '</div></div></div>';
+    if (r.video_summary) h += '<p class="ps-p">' + esc(r.video_summary) + '</p>';
+    if (r.objective_statement) h += '<p class="ps-p">' + esc(r.objective_statement) + '</p>';
+    var dims = visibleDims(r);
+    if (dims.length) {
+      h += '<h3 class="ps-h">Breakdown</h3>';
+      dims.forEach(function (d) {
+        var w = Math.max(0, Math.min(100, (Number(d.score) || 0) * 10));
+        h += '<div class="ps-dim"><div class="ps-dim-top"><span>' + esc(d.name) + '</span><span class="ps-dim-meta">' + d.weight + '% of score &middot; ' + d.score + '/10</span></div>' +
+          '<div class="ps-bar"><i style="width:' + w + '%"></i></div>' +
+          (d.improvement ? '<p class="ps-fix"><strong>Fix:</strong> ' + esc(d.improvement) + '</p>' : '') + '</div>';
+      });
+    }
+    if (r.top_improvements && r.top_improvements.length) {
+      h += '<h3 class="ps-h">Top fixes</h3><ol class="ps-fixes">';
+      r.top_improvements.forEach(function (t) {
+        h += '<li><strong>' + esc(t.change) + '</strong> <span class="ps-where">(' + esc(t.where) + ')</span><br>Why: ' + esc(t.why) + '<br>Try: ' + esc(t.example) + '</li>';
+      });
+      h += '</ol>';
+    }
+    var v = r.verdict || {};
+    if (v.strengths || v.weakness || v.priority) {
+      h += '<h3 class="ps-h">Final verdict</h3>' +
+        (v.strengths ? '<p class="ps-p"><strong>Doing well:</strong> ' + esc(v.strengths) + '</p>' : '') +
+        (v.weakness ? '<p class="ps-p"><strong>Biggest weakness:</strong> ' + esc(v.weakness) + '</p>' : '') +
+        (v.priority ? '<p class="ps-p"><strong>Do this first:</strong> ' + esc(v.priority) + '</p>' : '');
+    }
+    h += '<p class="ps-foot">Graded by BennettIQ &middot; bennettiq.vercel.app</p>';
+    $('print-sheet').innerHTML = h;
+    window.print();
+  }
+
   /* ---------------- history ---------------- */
   async function loadHistory() {
     showPane('pane-history');
@@ -1019,7 +1069,8 @@
       var r = await fetch('/api/history', { headers: authHeader() });
       var items = await r.json();
       if (!items.length) { list.innerHTML = '<p class="empty">No grades yet. Grade your first video!</p>'; return; }
-      list.innerHTML = items.map(function (it, idx) {
+      var shownItems = items.slice(0, 10);
+      list.innerHTML = shownItems.map(function (it, idx) {
         var d = new Date(it.created_at).toLocaleString();
         var b = it.brief || {}, rep = it.report || {};
         var thumb = rep.thumbnail
@@ -1029,7 +1080,7 @@
           '<div class="hist-main"><div class="d">' + esc(d) + '</div>' +
           '<div class="g">' + esc(b.goal || '-') + ' · ' + esc((b.platforms || []).join(', ')) + '</div>' +
           '<div class="s">Score ' + (rep.overall_score != null ? rep.overall_score : '–') + '/100</div></div></div>';
-      }).join('');
+      }).join('') + (items.length > 10 ? '<p class="hist-note">Showing your 10 most recent grades.</p>' : '');
       list.querySelectorAll('.hist-item').forEach(function (el) {
         el.addEventListener('click', function () {
           var it = items[parseInt(el.getAttribute('data-idx'), 10)];

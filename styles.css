@@ -1132,3 +1132,53 @@ body.brand-sky .lg-tl-knob { transition: left 0.12s linear; }
 
 /* The grading loading star wears the brand amber red (Elijah, 2026-11-06). */
 body.brand-sky .loading-star { color: #ee4526; }
+
+/* Friend feedback batch (2026-11-11): hero short-form note, slim trust strip,
+   History top CTA + cap note, in-app How pane, Mission line, print sheet. */
+body.brand-sky .hero-note { text-align: center; color: rgba(255, 255, 255, 0.88); font-size: 13.5px; font-weight: 600; margin-top: 14px; }
+body.brand-sky .trust-strip { max-width: 860px; margin: 30px auto 4px; padding: 0 24px; text-align: center; }
+body.brand-sky .trust-strip p { color: #44586a; font-size: 15px; line-height: 1.6; }
+body.brand-sky .trust-strip strong { color: #12212e; }
+body.brand-sky .trust-strip a { color: #3a86dc; font-weight: 700; }
+.pane-cta-top { margin-top: 2px; margin-bottom: 20px; }
+.hist-note { text-align: center; color: #667085; font-size: 13px; margin-top: 14px; }
+.how-pane h3 { font-size: 17px; margin: 24px 0 8px; color: #12212e; }
+.how-pane p, .how-pane li { line-height: 1.6; color: #344054; }
+.how-pane ul { padding-left: 20px; margin-top: 6px; }
+.how-pane .bands-table { width: 100%; border-collapse: collapse; margin: 10px 0 6px; font-size: 14.5px; }
+.how-pane .bands-table th, .how-pane .bands-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(16, 24, 40, 0.09); }
+.how-pane .bands-table th { color: #12212e; }
+.how-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+.mission-line { font-size: 19px; font-weight: 700; line-height: 1.45; color: #12212e; border-left: 3px solid #3a86dc; padding-left: 14px; margin: 16px 0 18px; }
+
+/* Print sheet: only visible when printing (the Download PDF button). */
+#print-sheet { display: none; }
+@media print {
+  @page { margin: 13mm; }
+  html, body { background: #fff !important; }
+  #view-landing, #view-app, .modal { display: none !important; }
+  #print-sheet { display: block; color: #12212e; font-size: 13.5px; }
+  #print-sheet .ps-head { display: flex; align-items: center; gap: 9px; border-bottom: 2px solid #12212e; padding-bottom: 10px; }
+  #print-sheet .brand-mark { width: 26px; height: 26px; }
+  #print-sheet .ps-brand { font-size: 20px; font-weight: 800; }
+  #print-sheet .ps-meta { margin-left: auto; color: #667085; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  #print-sheet .ps-sub { color: #44586a; margin: 12px 0 2px; }
+  #print-sheet .ps-score { display: flex; align-items: center; gap: 20px; margin: 16px 0 8px; }
+  #print-sheet .ps-ringwrap { position: relative; width: 120px; height: 120px; flex: none; }
+  #print-sheet .ps-ring { width: 120px; height: 120px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #print-sheet .ps-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 800; }
+  #print-sheet .ps-band { font-size: 22px; font-weight: 800; }
+  #print-sheet .ps-of { color: #667085; margin-top: 3px; }
+  #print-sheet .ps-p { line-height: 1.55; margin: 8px 0; }
+  #print-sheet .ps-h { font-size: 13px; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; border-bottom: 1px solid rgba(16, 24, 40, 0.14); padding-bottom: 5px; margin: 20px 0 10px; }
+  #print-sheet .ps-dim { margin-bottom: 11px; }
+  #print-sheet .ps-dim-top { display: flex; justify-content: space-between; font-weight: 700; }
+  #print-sheet .ps-dim-meta { color: #667085; font-weight: 600; font-size: 12.5px; }
+  #print-sheet .ps-bar { height: 8px; border-radius: 999px; background: #e6e9f2; margin-top: 5px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  #print-sheet .ps-bar i { display: block; height: 100%; border-radius: 999px; background: #3a86dc; }
+  #print-sheet .ps-fix { color: #44586a; margin-top: 4px; }
+  #print-sheet .ps-fixes { padding-left: 20px; }
+  #print-sheet .ps-fixes li { margin-bottom: 9px; line-height: 1.5; }
+  #print-sheet .ps-where { color: #667085; }
+  #print-sheet .ps-foot { margin-top: 22px; padding-top: 10px; border-top: 1px solid rgba(16, 24, 40, 0.14); color: #667085; font-size: 12px; }
+}
