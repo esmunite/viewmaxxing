@@ -15,7 +15,7 @@
     <div class="pill-links">
       <a href="/">Home</a>
       <a href="/how.html" aria-current="page">How it works</a>
-      <a href="/about.html">About</a>
+      <a href="/about.html">Mission</a>
     </div>
     <button class="btn btn-dark" data-auth-open="signup">Get Started <span aria-hidden="true">→</span></button>
   </nav>
@@ -25,10 +25,35 @@
   <h1>How grading works</h1>
   <p class="pane-sub">Every video gets one score out of 100, weighted for the goal you picked: virality, conversion, growth, or engagement. Same video, different goal, different score.</p>
 
+  <div class="grade-card" id="gradeCard">
+    <div class="gc-left">
+      <div class="gc-ringwrap">
+        <svg viewBox="0 0 120 120" class="gc-ring" aria-hidden="true"><circle cx="60" cy="60" r="52" fill="none" stroke="#e6e9f2" stroke-width="10"/><circle class="gc-fg" cx="60" cy="60" r="52" fill="none" stroke="#3a86dc" stroke-width="10" stroke-linecap="round" transform="rotate(-90 60 60)"/></svg>
+        <div class="gc-num" id="gcNum">0</div>
+      </div>
+      <span class="gc-chip">Promising</span>
+    </div>
+    <div class="gc-bars">
+      <div class="gc-dim"><div class="gc-dim-top"><span>Opening hook</span><span>9/10</span></div><div class="gc-bar"><i style="--w:90%"></i></div></div>
+      <div class="gc-dim"><div class="gc-dim-top"><span>Visual hook</span><span>8/10</span></div><div class="gc-bar"><i style="--w:80%"></i></div></div>
+      <div class="gc-dim"><div class="gc-dim-top"><span>Retention</span><span>7/10</span></div><div class="gc-bar"><i style="--w:70%"></i></div></div>
+      <p class="gc-fix"><span class="tag">TOP FIX</span>Open on the strongest moment, not the warm-up.</p>
+    </div>
+  </div>
+  <p class="gc-cap">An example grade, illustrated. Your report is built from your own video.</p>
+
   <h2>One score, weighted for your goal</h2>
   <p>Each goal is graded on its own weighted dimensions. A video chasing virality is judged heavily on its opening seconds and pacing; one chasing conversion is judged on its offer, proof, and call to action. The breakdown shows every dimension with its weight, plus what's working, what's hurting, and one concrete fix, each tied to a timestamp, quote, or frame from your actual footage. A format comparison then stacks your video against the proven patterns top videos in your format use, and names the gap.</p>
 
   <h2>The bands</h2>
+  <div class="band-scale" aria-hidden="true">
+    <div class="band-seg b1"><strong>0&ndash;39</strong><span>Misaligned</span></div>
+    <div class="band-seg b2"><strong>40&ndash;59</strong><span>Weak</span></div>
+    <div class="band-seg b3"><strong>60&ndash;69</strong><span>Mixed</span></div>
+    <div class="band-seg b4"><strong>70&ndash;79</strong><span>Promising</span></div>
+    <div class="band-seg b5"><strong>80&ndash;89</strong><span>Strong</span></div>
+    <div class="band-seg b6"><strong>90&ndash;100</strong><span>Exceptional</span></div>
+  </div>
   <table>
     <tr><th>Score</th><th>Meaning</th></tr>
     <tr><td><strong>90–100</strong></td><td>Exceptional: among the best in a competitive feed for this goal</td></tr>
@@ -41,6 +66,7 @@
   <p class="muted">The scores are deliberately tough. A 90 should feel earned.</p>
 
   <h2>Hook frameworks BennettIQ looks for</h2>
+  <div class="hook-chips"><span class="hook-chip">Pattern interrupt</span><span class="hook-chip">Open loop</span><span class="hook-chip">Bold or negative claim</span><span class="hook-chip">Numbered promise</span><span class="hook-chip">Direct question</span><span class="hook-chip">In medias res</span><span class="hook-chip">Relatable POV</span></div>
   <p>Your opening is graded against seven proven archetypes: pattern interrupt, open loop, bold or negative claim, numbered promise, direct question, in-medias-res, and relatable POV. Your fixes name the exact framework to use, with a concrete rewrite, not generic advice.</p>
 
   <h2>Honest limits</h2>
@@ -62,7 +88,7 @@
   <span class="footer-dot" aria-hidden="true">·</span>
   <a href="/terms.html">Terms</a>
   <span class="footer-dot" aria-hidden="true">·</span>
-  <a href="/about.html">About</a>
+  <a href="/about.html">Mission</a>
 </footer>
 
 <!-- ============ AUTH MODAL ============ -->
@@ -174,6 +200,30 @@
       $('btn-email-submit').disabled = false;
     })();
   });
+})();
+</script>
+<script>
+(function () {
+  var card = document.getElementById('gradeCard');
+  if (!card) return;
+  var num = document.getElementById('gcNum');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function play() {
+    card.classList.add('play');
+    if (reduce) { num.textContent = '74'; return; }
+    var t0 = null;
+    function tick(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min(1, (ts - t0) / 1200);
+      var e = 1 - Math.pow(1 - p, 3);
+      num.textContent = Math.round(74 * e);
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+  if (!('IntersectionObserver' in window)) { play(); return; }
+  var io = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { play(); io.disconnect(); } }, { threshold: 0.35 });
+  io.observe(card);
 })();
 </script>
 </body>
