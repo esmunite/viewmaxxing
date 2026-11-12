@@ -1024,29 +1024,6 @@ body.brand-sky .hero-how-link { color: #fff; }
 body.brand-sky .hero-ctas .btn-dark { text-transform: uppercase; letter-spacing: 0.05em; padding: 17px 40px; font-size: 16.5px; border-radius: 14px; box-shadow: 0 16px 34px rgba(238, 69, 38, 0.38); }
 
 /* ---------- live grade simulation row ---------- */
-body.brand-sky .lg-head { text-align: center; margin-top: 46px; }
-body.brand-sky .lg-pill { display: inline-flex; align-items: center; gap: 9px; background: var(--brand-ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; padding: 10px 18px; border-radius: 999px; box-shadow: 0 12px 26px rgba(18, 33, 46, 0.3); }
-body.brand-sky .lg-pill .lg-pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--brand-red); animation: lgpulse 1.2s ease-in-out infinite; }
-@keyframes lgpulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.55); opacity: 0.55; } }
-body.brand-sky .lg-row { max-width: 1180px; margin: 22px auto 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
-body.brand-sky .lg-shape { position: relative; overflow: hidden; height: 340px; border-radius: 34px; box-shadow: 0 24px 48px rgba(18, 33, 46, 0.22); transition: transform 0.5s ease, box-shadow 0.5s ease; }
-body.brand-sky .lg-shape.lg-arch { border-radius: 999px 999px 34px 34px; }
-body.brand-sky .lg-shape img { width: 100%; height: 100%; object-fit: cover; display: block; }
-body.brand-sky .lg-shape::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 34%; background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 55%, rgba(255,255,255,0) 100%); transform: translateY(-110%); pointer-events: none; }
-body.brand-sky .lg-shape.lg-lit { transform: translateY(-10px); box-shadow: 0 34px 60px rgba(18, 33, 46, 0.32); }
-body.brand-sky .lg-shape.lg-lit::after { transform: translateY(320%); transition: transform 1s ease; }
-body.brand-sky .lg-ts { position: absolute; top: 14px; left: 14px; background: rgba(18, 33, 46, 0.82); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; padding: 7px 12px; border-radius: 999px; }
-body.brand-sky .lg-arch .lg-ts { top: 16px; left: 50%; transform: translateX(-50%); }
-body.brand-sky .lg-ui { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(255, 255, 255, 0.96); border-radius: 16px; padding: 11px 13px; box-shadow: 0 12px 26px rgba(18, 33, 46, 0.22); text-align: left; }
-body.brand-sky .lg-row-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--brand-ink); }
-body.brand-sky .lg-row-line strong { font-size: 13.5px; font-weight: 800; }
-body.brand-sky .lg-bar { height: 7px; border-radius: 999px; background: #e8e4d8; margin-top: 7px; overflow: hidden; }
-body.brand-sky .lg-bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--sky); transition: width 0.7s ease; }
-body.brand-sky .lg-fix-tag { color: var(--brand-red); font-weight: 800; font-size: 11px; letter-spacing: 0.12em; }
-body.brand-sky .lg-fix-note { font-size: 12.5px; font-weight: 600; color: var(--brand-ink); margin-top: 3px; }
-body.brand-sky .lg-badge { position: absolute; right: 14px; top: 14px; width: 74px; height: 74px; border-radius: 50%; background: var(--brand-red); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 26px; line-height: 1; box-shadow: 0 12px 26px rgba(238, 69, 38, 0.45); }
-body.brand-sky .lg-badge small { font-family: 'Inter', sans-serif; font-size: 8.5px; font-weight: 800; letter-spacing: 0.14em; margin-top: 3px; }
-body.brand-sky .lg-note { text-align: center; color: #44586a; font-size: 13px; padding: 18px 20px 50px; }
 
 /* ---------- homepage sections ---------- */
 body.brand-sky .home-section, body.brand-sky .how-strip, body.brand-sky .landing-footer { max-width: 1160px; margin-left: auto; margin-right: auto; padding-left: 24px; padding-right: 24px; }
@@ -1071,20 +1048,11 @@ body.brand-sky .social-pill:hover { border-color: var(--brand-red); color: var(-
 body.brand-sky .doc-wrap table th { background: var(--sky); color: #fff; }
 
 @media (max-width: 900px) {
-  body.brand-sky .lg-row { grid-template-columns: repeat(2, 1fr); }
-  body.brand-sky .lg-shape { height: 300px; }
 }
 @media (max-width: 640px) {
   body.brand-sky .sky-hero { padding: 16px 14px 0; border-radius: 0; }
   body.brand-sky .sky-hero .hero-panel { padding-top: 36px; }
   body.brand-sky .hero-h1 { font-size: clamp(52px, 15.5vw, 76px); }
-  body.brand-sky .lg-head { margin-top: 36px; }
-  body.brand-sky .lg-row { gap: 14px; margin-top: 18px; }
-  body.brand-sky .lg-shape { height: 235px; border-radius: 26px; }
-  body.brand-sky .lg-shape.lg-arch { border-radius: 999px 999px 26px 26px; }
-  body.brand-sky .lg-badge { width: 58px; height: 58px; font-size: 21px; }
-  body.brand-sky .lg-ui { padding: 9px 11px; }
-  body.brand-sky .lg-row-line { font-size: 11.5px; }
   body.brand-sky .home-section, body.brand-sky .how-strip, body.brand-sky .landing-footer { padding-left: 16px; padding-right: 16px; }
   body.brand-sky .about-navwrap { padding: 12px 14px 16px; }
 }
@@ -1100,35 +1068,14 @@ body.brand-sky .landing-page > .partner-row { max-width: 1160px; margin: 0 auto;
 
 /* Brand Sky fix 3: make the grading obvious - a video timeline under the frames,
    playhead synced to the sequencer, and a focus ring on the frame being graded. */
-body.brand-sky .lg-ui, body.brand-sky .lg-ts, body.brand-sky .lg-badge { z-index: 3; }
-body.brand-sky .lg-shape::before { content: ''; position: absolute; inset: 11px; border: 1.5px solid rgba(255, 255, 255, 0); border-radius: 26px; z-index: 2; pointer-events: none; transition: border-color 0.45s ease; }
-body.brand-sky .lg-shape.lg-arch::before { border-radius: 999px 999px 26px 26px; }
-body.brand-sky .lg-shape.lg-lit::before { border-color: rgba(255, 255, 255, 0.75); }
-body.brand-sky .lg-timeline { max-width: 1180px; margin: 30px auto 0; padding: 0 6px; text-align: left; }
-body.brand-sky .lg-tl-head { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #44586a; margin-bottom: 12px; }
-body.brand-sky .lg-tl-track { position: relative; height: 6px; border-radius: 999px; background: rgba(18, 33, 46, 0.16); }
-body.brand-sky .lg-tl-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--sky); transition: width 0.7s ease; }
-body.brand-sky .lg-tl-dot { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 2px solid rgba(18, 33, 46, 0.4); transform: translate(-50%, -50%); }
-body.brand-sky .lg-tl-knob { position: absolute; top: 50%; width: 17px; height: 17px; border-radius: 50%; background: #fff; border: 2.5px solid var(--brand-ink); box-shadow: 0 4px 12px rgba(18, 33, 46, 0.35); transform: translate(-50%, -50%); transition: left 0.7s ease; }
-body.brand-sky .lg-tl-labels { position: relative; height: 20px; margin-top: 7px; }
-body.brand-sky .lg-tl-labels span { position: absolute; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #44586a; }
-body.brand-sky .lg-tl-labels span:first-child { transform: none; }
-body.brand-sky .lg-tl-labels .lg-tl-end { left: auto; right: 0; transform: none; }
 @media (max-width: 640px) {
-  body.brand-sky .lg-timeline { margin-top: 24px; padding: 0 2px; }
-  body.brand-sky .lg-shape::before { inset: 9px; border-radius: 20px; }
-  body.brand-sky .lg-shape.lg-arch::before { border-radius: 999px 999px 20px 20px; }
-  body.brand-sky .lg-tl-labels .lg-tl-end { display: none; }
 }
 
 /* Photo credits live under the footer (the licenses require the names on the page);
    the simulation note itself stays exactly as Elijah worded it. */
-body.brand-sky .foot-credits { text-align: center; color: #98a2b3; font-size: 11.5px; margin: 14px auto 0; padding: 0 24px; }
 
 /* Brand Sky fix 4: the timeline is scroll-driven now, so the fill and knob
    track the scroll directly instead of easing over 0.7s. */
-body.brand-sky .lg-tl-fill { transition: width 0.12s linear; }
-body.brand-sky .lg-tl-knob { transition: left 0.12s linear; }
 
 /* The grading loading star wears the brand amber red (Elijah, 2026-11-06). */
 body.brand-sky .loading-star { color: #ee4526; }
