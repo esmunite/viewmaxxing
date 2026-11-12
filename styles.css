@@ -1082,7 +1082,8 @@ body.brand-sky .loading-star { color: #ee4526; }
 
 /* Friend feedback batch (2026-11-11): hero short-form note, slim trust strip,
    History top CTA + cap note, in-app How pane, Mission line, print sheet. */
-body.brand-sky .hero-note { text-align: center; color: rgba(255, 255, 255, 0.88); font-size: 13.5px; font-weight: 600; margin-top: 14px; }
+body.brand-sky .hero-note { text-align: center; color: #12212e; font-size: 15px; font-weight: 600; margin-top: 16px; padding: 0 20px; }
+body.brand-sky .hero-note a { color: #2f6fb4; font-weight: 700; }
 body.brand-sky .trust-strip { max-width: 860px; margin: 30px auto 4px; padding: 0 24px; text-align: center; }
 body.brand-sky .trust-strip p { color: #44586a; font-size: 15px; line-height: 1.6; }
 body.brand-sky .trust-strip strong { color: #12212e; }
